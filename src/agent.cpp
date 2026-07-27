@@ -31,8 +31,3 @@ void connection(){
     std::cout << server_response << std::endl;
     close(client_fd);
 }
-
-int main(){
-    connection();
-    return 0;
-}

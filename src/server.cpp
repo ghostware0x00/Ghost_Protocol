@@ -42,12 +42,3 @@ void listener(){
     send_command(client_fd); // send msg to client
     close(server_fd); // close server_socket created for listening
 }
-
-
-
-
-
-int main(){
-    listener();
-    return 0;
-}
