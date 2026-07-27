@@ -10,7 +10,7 @@
 ```bash
 GhostProtocol/
 │
-├── include/
+├── common/
 │   ├── server.hpp
 │   ├── client.hpp
 │   └── common.hpp
