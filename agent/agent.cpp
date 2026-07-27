@@ -28,6 +28,7 @@ void connection(){
     int connection_status = recv(client_fd, (struct sockaddr*)&server_response, sizeof(server_response), 0);
     socket_check(connection_status);
     std::cout << server_response << std::endl;
+    close(client_fd);
 }
 
 int main(){
