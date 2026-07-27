@@ -4,10 +4,10 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstdlib>
+#include "agent.hpp"
+#include "common.hpp"
 // #include <openssl/ssl.h> // using openssl to encrypt the open socket communication
 // #include <openssl/err.h>
-#define PORT 1234
-
 void socket_check(int soc_fd){
     if(soc_fd < 0){
         std::perror("[x]connection failed");
