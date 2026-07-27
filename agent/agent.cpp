@@ -12,6 +12,7 @@ void socket_check(int soc_fd){
     if(soc_fd < 0){
         std::perror("[x]connection failed");
         std::cout << std::endl;
+        std::exit(EXIT_FAILURE);
     }
 }
 
