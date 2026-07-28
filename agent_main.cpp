@@ -1,6 +1,7 @@
 #include "agent.hpp"
 
 int main(){
-    connection();
+    agent agent1;
+    agent1.connection();
     return 0;
 }
