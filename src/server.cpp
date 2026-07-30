@@ -1,13 +1,15 @@
 #include <iostream>
-#include <string>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstdlib>
 #include "server.hpp"
+#include "packet.hpp"
 #include "common.hpp"
 // #include <openssl/ssl.h> // using openssl to encrypt the open socket communication
 // #include <openssl/err.h>
+
+
 
 void common::socket_check(int soc_fd){ // socket failure error handling
     if(soc_fd < 0){
@@ -17,9 +19,22 @@ void common::socket_check(int soc_fd){ // socket failure error handling
     }
 }
 
+packet packet_wrapping(std::string command){
+    packet p1;
+    p1.session_id = 
+    p1.command = command;
+    p1.command_length = command.length();
+    p1.heartbeat = 
+}
+
 void server::send_commands(int soc_fd){ // send message to client
-    char message[100] = "[+] connected to server";
-    send(soc_fd, message, sizeof(message), 0);
+    std::string command;
+    packet p1;
+    packet p1;
+    std::cout << "Enter command : " << std::endl;
+    std::getline(std::cin >> std::ws, command);
+    p1 = packet_wrapping(command);
+    send(soc_fd, &p1, sizeof(p1), 0);
 }
 
 void server::listener(){
