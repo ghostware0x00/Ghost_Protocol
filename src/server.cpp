@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstdlib>
+#include <random>
 #include "server.hpp"
 #include "packet.hpp"
 #include "common.hpp"
@@ -20,21 +21,21 @@ void common::socket_check(int soc_fd){ // socket failure error handling
 }
 
 packet packet_wrapping(std::string command){
+    srand(time(0)); // setting the current time as seed value so that rand() number is new everytime
     packet p1;
-    p1.session_id = 
+    p1.session_id = rand(); // generate a random number
     p1.command = command;
     p1.command_length = command.length();
-    p1.heartbeat = 
+    p1.heartbeat = 0;
 }
 
 void server::send_commands(int soc_fd){ // send message to client
     std::string command;
     packet p1;
-    packet p1;
     std::cout << "Enter command : " << std::endl;
     std::getline(std::cin >> std::ws, command);
     p1 = packet_wrapping(command);
-    send(soc_fd, &p1, sizeof(p1), 0);
+    send(soc_fd, &p1, sizeof(p1), 0);// need to send data after serialization #NOT DONE!!!
 }
 
 void server::listener(){

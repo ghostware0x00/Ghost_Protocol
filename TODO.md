@@ -11,9 +11,13 @@
 
 #### WHAT TO FIX
 
-- need to find a way to set a random value for session_id
-- wrapping up of struct packet and sending it via 
+- arrange the struct packet data into a sequence of bytes before sending to agent 
 
+#### HOW TO FIX
+
+- since sending struct packet address might cause padding, alignment, endianness issues we will serialize the struct packet data.
+- form a sequence of bytes and then send it via socket.send().
+- the compiler is free to layout the struct however it wants and also there is the network byte ordering issue so we need to form array of bytes so that there is no room for the compiler to include any padding making our data sequence secure.
 
 #### DESIGN LOGIC AND QUESTIONS
 
