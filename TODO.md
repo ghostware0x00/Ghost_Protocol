@@ -51,3 +51,62 @@ ask the communication rules whether the packet structure is following the stuff 
     - Binary?
     - JSON?
     - Custom serialized format?
+
+    ## SERIALIZATION CODE
+
+```c
+#include <vector>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <sys/socket.h> // For send()
+#include <arpa/inet.h>  // For htonl()
+
+typedef struct packet {
+    uint32_t command_length;
+    uint32_t session_id;
+    uint8_t heartbeat;
+    std::string command;
+} packet;
+
+// --- Inside your sending function ---
+
+packet p;
+p.session_id = 105;
+p.heartbeat = 1;
+p.command = "WHOAMI";
+p.command_length = p.command.size(); // Set the length of the string content
+
+// 1. Calculate the exact total byte size needed
+size_t total_size = sizeof(p.command_length) + 
+                    sizeof(p.session_id) + 
+                    sizeof(p.heartbeat) + 
+                    p.command_length;
+
+std::vector<uint8_t> byte_array(total_size);
+
+// 2. Setup a pointer to track where we are writing in the buffer
+uint8_t* writer = byte_array.data();
+
+// 3. Convert multi-byte integers to Network Byte Order (Big Endian) for safety
+uint32_t net_length = htonl(p.command_length);
+uint32_t net_session = htonl(p.session_id);
+
+// 4. Copy each field into the array step-by-step
+std::memcpy(writer, &net_length, sizeof(net_length));
+writer += sizeof(net_length);
+
+std::memcpy(writer, &net_session, sizeof(net_session));
+writer += sizeof(net_session);
+
+std::memcpy(writer, &p.heartbeat, sizeof(p.heartbeat));
+writer += sizeof(p.heartbeat);
+
+// Copy the actual characters of the string, not the std::string object
+std::memcpy(writer, p.command.data(), p.command_length);
+
+// 5. Send the byte array over the socket
+// Note: send() might not send all bytes at once in real-world scenarios. 
+// You should ideally loop until total_size bytes are sent.
+ssize_t bytes_sent = send(socket_fd, byte_array.data(), byte_array.size(), 0);
+```

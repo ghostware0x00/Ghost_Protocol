@@ -8,6 +8,12 @@
 // #include <openssl/ssl.h> // using openssl to encrypt the open socket communication
 // #include <openssl/err.h>
 
+void common::code_exit(){
+    std::cout << "[*]Corrupted data exiting program...." << std::endl;
+    exit(EXIT_FAILURE);
+}
+
+
 void common::socket_check(int soc_fd){
     if(soc_fd < 0){
         std::perror("[x]connection failed");
@@ -15,6 +21,7 @@ void common::socket_check(int soc_fd){
         std::exit(EXIT_FAILURE);
     }
 }
+
 
 void agent::connection(){
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);

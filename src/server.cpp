@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring> // for memcpy()
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -11,22 +12,64 @@
 // #include <openssl/err.h>
 
 
+void common::code_exit(){
+    std::cout << "[*]Corrupted data exiting program...." << std::endl;
+    exit(EXIT_FAILURE);
+}
+
 
 void common::socket_check(int soc_fd){ // socket failure error handling
     if(soc_fd < 0){
-        std::perror("[x]connection failed");
+        std::perror("[*]connection failed");
         std::cout << std::endl;
         exit(EXIT_FAILURE);
     }
 }
 
+
+void common::send_failed(int send_val){
+    if(send_val < 0){
+        std::perror("[*]data send failed");
+        std::cout << std::endl; 
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+std::vector<uint8_t> serialization(packet p1){
+    size_t total_size = sizeof(p1.command_length) + sizeof(p1.session_id) + sizeof(p1.heartbeat) + p1.command.length();
+    // doing sizeof(p1) causes padding of bytes so we will get wrong data 
+    // since we are sending this through network we need to calculate their correct size 
+    std::vector<uint8_t> byte_array(total_size); // creating a dynamic array of total_size bytes and it will have 1 byte continguous blocks of memory storage. arrays in vectors can shrink and increase since they are dynamic
+    uint8_t *byte_array_ptr = byte_array.data(); // pointer of byte_array so that we can move it accordingly and writes bytes in the byte_array. also byte_array.data() produces the starting address of byte_array
+    // since these 2 variables are 4 bytes so using htonl we set them to big endian order, the correct byte order for network communication
+    if(byte_array_ptr == NULL){
+        common::code_exit();
+    }
+    uint32_t cl = htonl(p1.command_length);
+    uint32_t sid = htonl(p1.session_id);
+    //copying bytes in memory (byte_array)
+    byte_array_ptr = byte_array.data(); // setting the starting address for 
+    std::memcpy(byte_array_ptr, &cl, sizeof(cl)); // copying command length bytes
+    // incrementing pointer with respect to the bytes of cl(command_length) and sid(session_id)
+    byte_array_ptr += sizeof(cl); 
+    std::memcpy(byte_array_ptr, &sid, sizeof(sid));
+    byte_array_ptr += sizeof(sid);
+    std::memcpy(byte_array_ptr, &p1.heartbeat, sizeof(p1.heartbeat));
+    byte_array_ptr += sizeof(p1.heartbeat);
+    std::memcpy(byte_array_ptr, p1.command.data(), p1.command.length());
+    return byte_array;
+}
+
+
 packet packet_wrapping(std::string command){
     srand(time(0)); // setting the current time as seed value so that rand() number is new everytime
     packet p1;
-    p1.session_id = rand(); // generate a random number
-    p1.command = command;
     p1.command_length = command.length();
+    p1.session_id = rand(); // generate a random number
     p1.heartbeat = 0;
+    p1.command = command;
+    return p1;
 }
 
 void server::send_commands(int soc_fd){ // send message to client
@@ -35,7 +78,10 @@ void server::send_commands(int soc_fd){ // send message to client
     std::cout << "Enter command : " << std::endl;
     std::getline(std::cin >> std::ws, command);
     p1 = packet_wrapping(command);
-    send(soc_fd, &p1, sizeof(p1), 0);// need to send data after serialization #NOT DONE!!!
+    std::vector<uint8_t> byte_array = serialization(p1);
+    if(send(soc_fd, byte_array.data(), byte_array.size(), 0) < 0){
+        common::code_exit();
+    }
 }
 
 void server::listener(){
