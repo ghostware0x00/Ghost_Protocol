@@ -5,19 +5,16 @@
 
 #### WHAT I NEED TO DO
 
-- create a packet structure and then use it to wrap the data sent from server to agent and vice versa.
-- also find a way to encrypt the data sent from server to agent and vice versa.
+- deserialization
+- receive payload header bytes in chunks  (9 bytes) first using recv until we get it
+- then try to call recv() again until command is received
 
 
-#### WHAT TO FIX
-
-- arrange the struct packet data into a sequence of bytes before sending to agent 
 
 #### HOW TO FIX
 
-- since sending struct packet address might cause padding, alignment, endianness issues we will serialize the struct packet data.
-- form a sequence of bytes and then send it via socket.send().
-- the compiler is free to layout the struct however it wants and also there is the network byte ordering issue so we need to form array of bytes so that there is no room for the compiler to include any padding making our data sequence secure.
+- use one byte_array for payload header
+- user another byte_array for payload itself (command)
 
 #### DESIGN LOGIC AND QUESTIONS
 

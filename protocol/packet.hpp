@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <vector>
 
 typedef struct packet{
     uint32_t command_length; // length of the command sent
@@ -12,7 +13,11 @@ typedef struct packet{
 
 packet packet_wrapping(std::string);
 std::vector<uint8_t> serialization(packet);
-// create a serialization module
-// we will convert the struct data into bytes 
-// then maintain their bytes order and then send it via the network socket.send()
+//packet deserialization(uint8_t *);
+//void display_command_output(packet);
+
+
+// deserialization
+// displaying output left
+
 
