@@ -5,16 +5,14 @@
 
 #### WHAT I NEED TO DO
 
-- deserialization
-- receive payload header bytes in chunks  (9 bytes) first using recv until we get it
-- then try to call recv() again until command is received
-
+- establish fullduplex 
+- server should sent and receive data 
+- agent should receive and send output 
 
 
 #### HOW TO FIX
 
-- use one byte_array for payload header
-- user another byte_array for payload itself (command)
+
 
 #### DESIGN LOGIC AND QUESTIONS
 
