@@ -41,9 +41,9 @@ void display_command_output(uint32_t command_length, uint32_t session_id, uint8_
     p1.session_id = session_id;
     p1.heartbeat = heartbeat + 1; //indicating agent is online
     p1.command.assign(command.begin(), command.end()); // convert uint8_t data to std::string type the .assign() is used because we already delcared packet p1 so we need to use .assign() to directly load the data otherwise we would have had to do this during packet p1 initialisation
-    std::cout << "$$$$$$$ Payload Details $$$$$$$" << std::endl;
-    std::println("{:<10}{:<10}{:<20}", "Session_ID", "Hearbeat", "Command_Length", "Command");
-    std::println("{:<10}{:<10}{:<20}", p1.session_id, p1.heartbeat, p1.command_length, p1.command);
+    //std::cout << "$$$$$$$ Payload Details $$$$$$$" << std::endl;
+    std::println("{:<20}{:<20}{:<20}{:<20}", "Session_ID", "Hearbeat", "Command_Length", "Command");
+    std::println("{:<20}{:<20}{:<20}{:<20}", p1.session_id, p1.heartbeat, p1.command_length, p1.command);
 }
 
 
