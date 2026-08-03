@@ -30,6 +30,31 @@ while (connected)
     send result
 ```
 
+- implement repeated connection retries by the agent
+```bash
+Disconnected
+      │
+      ▼
+Create socket
+      │
+      ▼
+connect()
+      │
+ ┌────┴────┐
+ │         │
+Fail     Success
+ │         │
+ ▼         ▼
+Close   Communication loop
+socket      │
+ │           │
+ ▼           │
+Wait         │
+ │           │
+ └───────────┘
+      Connection lost
+```
+
 
 #### HOW TO FIX
 

@@ -11,9 +11,10 @@ typedef struct packet{
     //std::string command_type[4] = {"EXEC", "RESULT", "UPLOAD", "DOWNLOAD"}; // based on the command type categorise it
 }packet;
 
-packet packet_wrapping(std::string);
-std::vector<uint8_t> serialization(packet);
-//packet deserialization(uint8_t *);
+packet packet_wrapping(std::string command);
+std::vector<uint8_t> serialization(packet p1);
+packet deserialization_payload_header(uint8_t payload_header[]);
+std::string deserializtion_payload(const uint8_t *payload, int size);
 //void display_command_output(packet);
 
 

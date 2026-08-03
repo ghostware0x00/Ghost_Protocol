@@ -22,18 +22,21 @@ void common::socket_check(int soc_fd){ // socket failure error handling
     if(soc_fd < 0){
         std::perror("[*]connection failed");
         std::cout << std::endl;
+        close(soc_fd);
         exit(EXIT_FAILURE);
     }
 }
 
 
-void common::send_failed(int send_val){
-    if(send_val < 0){
-        std::perror("[*]data send failed");
-        std::cout << std::endl; 
+void common::accept_failed(int client_fd){
+    if(client_fd < 0){
+        std::perror("[*]couldn't accept connection");
+        std::cout << std::endl;
+        close(client_fd);
         exit(EXIT_FAILURE);
     }
 }
+
 
 
 std::vector<uint8_t> serialization(packet p1){
@@ -102,6 +105,11 @@ void server::listener(){
     bind(server_fd, (struct sockaddr*) &server_address, sizeof(server_address)); // binding
     listen(server_fd, 2); // listening (max connection in queue = 2)
     int client_fd = accept(server_fd, NULL, NULL); // accept connections from client
-    send_commands(client_fd); // send msg to client
+    common::accept_failed(client_fd);
+    while(client_fd > 0){
+        send_commands(client_fd); // send msg to client
+        std::vector<std::string> command_output;
+        // receive stdout of the command executed in the agent.cpp side
+    }
     close(server_fd); // close server_socket created for listening
 }
