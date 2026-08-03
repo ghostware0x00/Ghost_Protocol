@@ -28,9 +28,22 @@ void common::code_exit(){
 
 void common::socket_check(int soc_fd){
     if(soc_fd < 0){
-        std::perror("[*]connection failed");
+        std::perror("[*]socket creation failed");
         std::cout << std::endl;
-        std::exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+void common::connection_failed(int connection_status){
+    if(connection_status == 0){
+        std::perror("[-]server disconnected connection");
+        std::cout << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    else{
+        std::perror("[-]receive failed");
+        std::cout << std::endl;
     }
 }
 
@@ -44,6 +57,7 @@ void display_command_output(uint32_t command_length, uint32_t session_id, uint8_
     //std::cout << "$$$$$$$ Payload Details $$$$$$$" << std::endl;
     std::println("{:<20}{:<20}{:<20}{:<20}", "Session_ID", "Hearbeat", "Command_Length", "Command");
     std::println("{:<20}{:<20}{:<20}{:<20}", p1.session_id, p1.heartbeat, p1.command_length, p1.command);
+    std::println();
 }
 
 
@@ -78,41 +92,47 @@ void agent::receive_commands(){
     server_address.sin_family = AF_INET; // IPv4 address
     server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // localhost
     server_address.sin_port = htons(PORT); // port 1234 assigned
-    int connection_fd = connect(client_fd, (struct sockaddr*)&server_address, sizeof(server_address));
-    common::socket_check(connection_fd);
     //char server_response[100];
     // payload header storage
     // we using &byte_array 
     // although might seem byte_array would work cuz array is a pointer. but byte_array is vector object first so we need point to that vector object's address
     while(1){
-        uint8_t payload_header[9];
-        int payload_header_length = 9; // size of struct packet (command length, session_id, heartbeat)
-        int connection_status = 0, recv_counter = 0;
-        //int phi = 0;
-        // receiving the payload header
-        do{
-            connection_status = recv(client_fd, payload_header+recv_counter, payload_header_length-recv_counter, 0);  // read bytes in each recv and then subtract when those bytes are read 
-            if(connection_status > 0){ // > 0 means received something else nothing was received
-                recv_counter += connection_status;
+        if(connect(client_fd, (struct sockaddr*)&server_address, sizeof(server_address)) == 0){
+            std::cout << "[+]connected to server" << std::endl;
+            while(1){
+                uint8_t payload_header[9];
+                int payload_header_length = 9; // size of struct packet (command length, session_id, heartbeat)
+                int connection_status = 0, recv_counter = 0;
+                //int phi = 0;
+                // receiving the payload header
+                do{
+                    connection_status = recv(client_fd, payload_header+recv_counter, payload_header_length-recv_counter, 0);  // read bytes in each recv and then subtract when those bytes are read 
+                    if(connection_status > 0){ // > 0 means received something else nothing was received
+                        recv_counter += connection_status;
+                    }else if(connection_status <= 0){common::connection_failed(connection_status);}
+                }while(recv_counter != payload_header_length);
+                // now that payload header is stored
+                // i need to need packet p1.command_length to understand how many bytes i need to read of command or payload
+                packet p1 = deserialization_payload_header(payload_header);
+                uint32_t payload_counter = 0;
+                // now reading payload from the tcp buffer
+                std::vector<uint8_t> payload(p1.command_length);
+                do{
+                    connection_status = recv(client_fd, payload.data()+payload_counter, p1.command_length-payload_counter, 0); // read bytes in each recv and then subtract when those bytes are read 
+                    if(connection_status > 0){
+                        payload_counter += connection_status;
+                    }else if(connection_status <= 0){common::connection_failed(connection_status);}
+                }while(payload_counter != p1.command_length);
+                std::string payload_cmd = deserialization_payload(payload.data(), payload.size()); // a vector_array's.size() sends const <datatype>* pointer or address
+                p1.command = payload_cmd;
+                display_command_output(p1.command_length, p1.session_id, p1.heartbeat, p1.command);
             }
-        }while(recv_counter != payload_header_length);
-        // now that payload header is stored
-        // i need to need packet p1.command_length to understand how many bytes i need to read of command or payload
-        packet p1 = deserialization_payload_header(payload_header);
-        uint32_t payload_counter = 0;
-        // now reading payload from the tcp buffer
-        std::vector<uint8_t> payload(p1.command_length);
-        do{
-            connection_status = recv(client_fd, payload.data()+payload_counter, p1.command_length-payload_counter, 0); // read bytes in each recv and then subtract when those bytes are read 
-            if(connection_status > 0){
-                payload_counter += connection_status;
-            }
-        }while(payload_counter != p1.command_length);
-        std::string payload_cmd = deserialization_payload(payload.data(), payload.size()); // a vector_array's.size() sends const <datatype>* pointer or address
-        p1.command = payload_cmd;
-        display_command_output(p1.command_length, p1.session_id, p1.heartbeat, p1.command);
+        }
+        else{
+            close(client_fd);
+            std::cout << "[-]agent couldn't connect to server" << std::endl;
+            break;
+        }
     }
-    close(connection_fd);
-    close(client_fd);
 }
 

@@ -7,6 +7,7 @@ class common{
         static void send_failed(int send_val);
         //static void receive_failed(int conn);
         static void accept_failed(int client_fd);
+        static void connection_failed(int client_fd);
         static void code_exit();
 };
 // common socket file descriptor error handling header file
