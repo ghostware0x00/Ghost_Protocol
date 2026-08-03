@@ -5,9 +5,30 @@
 
 #### WHAT I NEED TO DO
 
-- establish fullduplex 
-- server should sent and receive data 
-- agent should receive and send output 
+- Implement the following workflows :-
+- Implement the below server workflow
+
+```bash
+listen()
+
+while (true)
+    accept()
+    while (client connected)
+        read operator command
+        send packet
+        receive result
+```
+
+- Implement the below agent workflow
+
+```bash
+connect()
+
+while (connected)
+    receive packet
+    execute command
+    send result
+```
 
 
 #### HOW TO FIX
