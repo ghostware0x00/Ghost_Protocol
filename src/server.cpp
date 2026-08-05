@@ -65,22 +65,29 @@ std::vector<uint8_t> serialization(packet p1){
 }
 
 
-packet packet_wrapping(std::string command){
+int server::get_session_id(){
     srand(time(0)); // setting the current time as seed value so that rand() number is new everytime
+    int session_id = rand();
+    return session_id;
+}
+
+
+packet packet_wrapping(std::string command, int session_id){
+    //srand(time(0)); // setting the current time as seed value so that rand() number is new everytime
     packet p1;
     p1.command_length = command.length();
-    p1.session_id = rand(); // generate a random number
+    p1.session_id = session_id;
     p1.heartbeat = 0;
     p1.command = command;
     return p1;
 }
 
-void server::send_commands(int soc_fd){ // send message to client
+void server::send_commands(int soc_fd, int session_id){ // send message to client
     std::string command;
     packet p1;
     std::cout << "Enter command : " << std::endl;
     std::getline(std::cin >> std::ws, command);
-    p1 = packet_wrapping(command);
+    p1 = packet_wrapping(command, session_id);
     std::vector<uint8_t> byte_array = serialization(p1);
     if(send(soc_fd, byte_array.data(), byte_array.size(), 0) < 0){
         common::code_exit();
@@ -106,8 +113,9 @@ void server::listener(){
     listen(server_fd, 2); // listening (max connection in queue = 2)
     int client_fd = accept(server_fd, NULL, NULL); // accept connections from client
     common::accept_failed(client_fd);
+    int session_id = get_session_id();
     while(client_fd > 0){
-        send_commands(client_fd); // send msg to client
+        send_commands(client_fd, session_id); // send msg to client
         std::vector<std::string> command_output;
         // receive stdout of the command executed in the agent.cpp side
     }
