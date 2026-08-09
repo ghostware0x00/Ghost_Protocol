@@ -1,12 +1,10 @@
 #pragma once
 
-typedef struct session_registry{
-    uint32_t session_id;
-    int client_fd;
-}session_registry;
-
-
 class server{
+    private:
+        // create a session_registry structure
+        // so that we can map a new agent using session_id and client fd 
+        // targetting an individual agent will help us to send specific commands to that client without overlapping with other agents
     public:
         void listener();
         void send_commands(int soc_fd, int session_id);
