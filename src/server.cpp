@@ -97,12 +97,30 @@ void server::send_commands(int soc_fd, int session_id){ // send message to clien
 
 
 void server::handle_multiple_clients(int client_fd, int session_id){
+    /*
+                        SERVER
+                      |
+                listener thread
+                      |
+          +-----------+-----------+
+          |           |           |
+       accept()    accept()    accept()
+          |           |           |
+       client_fd   client_fd   client_fd
+          |           |           |
+       thread 1    thread 2    thread 3
+          |           |           |
+       session A   session B   session C
+
+       using the threading we are able to implement this
+    */
     std::cout << "[+] new agent connected" << std::endl;
     std::cout << "agent id : " << std::this_thread::get_id() << std::endl;
-    send_commands(client_fd, session_id); // send msg to client
+    //send_commands(client_fd, session_id); // send msg to client
     std::vector<std::string> command_output;
     // receive stdout of the command executed in the agent.cpp side
 }
+
 
 void server::listener(){
     /*
@@ -128,6 +146,8 @@ void server::listener(){
         int session_id = get_session_id();
         // server object;
         std::thread client(&server::handle_multiple_clients, this, client_fd, session_id);
+        // &server::handle_multiple_clients because its a function of an object so we are referencing the current context's object's function
+        // we are using client fd and session id for each new agent as a new thread connection
         client.detach();
         /*
         IMPLEMENT MULTITHREADING HERE TODO    
