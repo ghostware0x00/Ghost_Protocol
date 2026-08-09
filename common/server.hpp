@@ -1,5 +1,11 @@
 #pragma once
 
+typedef struct session_registry{
+    uint32_t session_id;
+    int client_fd;
+}session_registry;
+
+
 class server{
     public:
         void listener();
