@@ -2,4 +2,4 @@
 
 ## MULTITHREADING
 
-- enable multithreading to handle multiple clients from the server.
+- find a way to send data to individual agent connections
