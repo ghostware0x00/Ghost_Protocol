@@ -146,8 +146,10 @@ void server::listener(){
         int session_id = get_session_id();
         // server object;
         std::thread client(&server::handle_multiple_clients, this, client_fd, session_id);
-        // &server::handle_multiple_clients because its a function of an object so we are referencing the current context's object's function
-        // we are using client fd and session id for each new agent as a new thread connection
+        // handle_multiple_clients() is a member function of the server class.
+        // &server::handle_multiple_clients gives a pointer to that member function.
+        // It identifies which member function the new thread should execute.
+        // this keyword is used to tell the pointer which server object should it point to. In this case the current server object 
         client.detach();
         /*
         IMPLEMENT MULTITHREADING HERE TODO    
