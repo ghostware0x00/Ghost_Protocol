@@ -65,6 +65,17 @@ std::vector<uint8_t> serialization(packet p1){
 }
 
 
+// DEMO FUNCTION FOR DEBUGGIN PURPORSES
+void display_session_information(std::unordered_map<uint32_t, int> session_registry){
+    std::cout << "[+]<++++++++++ Displaying Session ID -> Client Fd Mapping ++++++++++>" << std::endl;
+    std::println("{:<20}{:<20}", "Session ID", "Client FD");
+    for(auto session_reg : session_registry){
+        std::println("{:<20}{:<20}", session_reg.first, session_reg.second);
+    }
+}
+
+
+
 int server::get_session_id(){
     srand(time(0)); // setting the current time as seed value so that rand() number is new everytime
     int session_id = rand();
@@ -117,7 +128,13 @@ void server::handle_multiple_clients(int client_fd, int session_id){
     std::cout << "[+] new agent connected" << std::endl;
     std::cout << "agent id : " << std::this_thread::get_id() << std::endl;
     //send_commands(client_fd, session_id); // send msg to client
-    std::vector<std::string> command_output;
+    
+    /*
+    STORE THE SESSION ID AS AN INDEX FOR A ARRAY ORDERED OR UNORDERED MAP
+    THEN USE THAT SESSION ID TO STORE CLIENT FD
+    USE THAT CLIENT FD TO SENT DATA TO THAT PARTICULAR AGENT 
+    */
+
     // receive stdout of the command executed in the agent.cpp side
 }
 
@@ -144,16 +161,14 @@ void server::listener(){
         int client_fd = accept(server_fd, NULL, NULL); // accept connections from client
         common::accept_failed(client_fd);
         int session_id = get_session_id();
-        // server object;
+        session_registry[session_id] = client_fd; // mapping session_id to client_fd using unorderd_map 
+        display_session_information(session_registry);
         std::thread client(&server::handle_multiple_clients, this, client_fd, session_id);
         // handle_multiple_clients() is a member function of the server class.
         // &server::handle_multiple_clients gives a pointer to that member function.
         // It identifies which member function the new thread should execute.
         // this keyword is used to tell the pointer which server object should it point to. In this case the current server object 
         client.detach();
-        /*
-        IMPLEMENT MULTITHREADING HERE TODO    
-        */
     }
     std::cout << "[-]server exiting..." << std::endl;
     close(server_fd); // close server_socket created for listening
