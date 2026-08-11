@@ -41,10 +41,8 @@ void common::accept_failed(int client_fd){
 
 void server::setsockopt_failed(int server_fd){ 
     // this function is executed when setsockopt fails
-    // the server cant connect because the operating system holds the ports in a TIME_WAIT STATE
-    // in this state the ports are in use so when the server tries to bind to this port the operating system refuses it
-    // hence neither the server nor the agent can connect
     std::perror("[-]setsockopt failed");
+    close(server_fd);
     std::cout << std::endl;
     exit(EXIT_FAILURE);
 }
@@ -174,10 +172,15 @@ void server::listener(){
     server_address.sin_addr.s_addr = INADDR_ANY; //  accept conncetions from all network interfaces 0.0.0.0
     server_address.sin_port = htons(PORT); // listen to port 1234
     int opt = 1;
-    if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+    if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
+        // the server cant connect because the operating system holds the ports in a TIME_WAIT STATE
+        // in this state the ports are in use so when the server tries to bind to this port the operating system refuses it
+        // hence neither the server nor the agent can connect
         setsockopt_failed(server_fd);
-    if(bind(server_fd, (struct sockaddr*) &server_address, sizeof(server_address)) < 0) // binding
+    }
+    if(bind(server_fd, (struct sockaddr*) &server_address, sizeof(server_address)) < 0){ // binding
         bind_failed(server_fd);
+    }
     
     listen(server_fd, 2); // listening (max connection in queue = 2)
     while(true){ // kept in loop so that multiple clients can be handled
