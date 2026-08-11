@@ -12,6 +12,8 @@ class server{
         void send_commands(int soc_fd, int session_id);
         int get_session_id();
         void handle_multiple_clients(int client_fd, int session_id);
+        void bind_failed(int server_fd);
+        void setsockopt_failed(int server_fd);
 };
 
 //server common code header file
