@@ -17,3 +17,9 @@
 
 - THE AGENTS WHICH ARE DISCONNECTED THOSE MAPPINGS FROM UNORDERED MAP SHOULD BE REMOVED
 - ALWAYS DISPLAY UPDATED HASH TABLE (UNORDERED MAP i.e. session_registry)
+
+
+### HOW TO DO
+
+- find the agent which disconnected using its client fd
+- find the client fd then remove that mapping from the UNORDERED MAP (session_registry)
