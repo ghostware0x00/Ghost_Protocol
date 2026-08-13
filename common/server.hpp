@@ -12,6 +12,7 @@ class server{
         void send_commands(int soc_fd, int session_id);
         int get_session_id();
         void handle_multiple_clients(int client_fd, int session_id);
+        int choose_session(std::unordered_map<uint32_t, int> session_registry);
         void bind_failed(int server_fd);
         void setsockopt_failed(int server_fd);
 };

