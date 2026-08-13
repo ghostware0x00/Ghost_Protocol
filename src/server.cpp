@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <thread> // used to implement multithreading so that tcp server can handle multiple clients
 #include <random>
+#include <mutex> // will be used for locking session_registry cuz concurrent access might corrupt it
 #include <print>
 #include "server.hpp"
 #include "packet.hpp"
@@ -13,6 +14,7 @@
 // #include <openssl/ssl.h> // using openssl to encrypt the open socket communication
 // #include <openssl/err.h>
 
+std::mutex session_locker; // global locker variable created
 
 void common::code_exit(){
     std::cout << "[*]Corrupted data exiting program...." << std::endl;
@@ -117,10 +119,11 @@ int server::choose_session(std::unordered_map<uint32_t, int> session_registry){
         std::cout << "Choose session_id : ";
         std::cin >> session_id;
         if(session_registry.contains(session_id)){
-            return session_registry[session_id];
+            return session_id;
         }    
         else{
             std::cout << "[*] invalid session input" << std::endl;
+
         }
     }
 }
@@ -140,7 +143,7 @@ void server::send_commands(int soc_fd, int session_id){ // send message to clien
 }
 
 
-void server::handle_multiple_clients(int client_fd, int session_id){
+void server::client_handler(int client_fd, int session_id, std::unordered_map<uint32_t, int> *session_registry){
     /*
                         SERVER
                       |
@@ -158,9 +161,29 @@ void server::handle_multiple_clients(int client_fd, int session_id){
 
        using the threading we are able to implement this
     */
-    std::cout << "[+] new agent connected" << std::endl;
-    std::cout << "agent id : " << std::this_thread::get_id() << std::endl;
+    char temp[1024];
+    while(true){
+        std::unique_lock<std::mutex> lock_session(session_locker); // locks the below code and automatically performs lock_session.unlock() when goes out of function scope. This lock makes sure when multiple agents don't access session_registry at the same time. only when one finishes the other can modify it. Without locking multiple modifications of the session_registry at the same time might result in program crash or segmentation faults
+        if(recv(client_fd, temp, sizeof(temp), 0) == 0){
+            close(client_fd);
+            session_registry->erase(session_id); // since session_registry is a pointer so we use arrow operator
+            std::cout << "[-]agent id : " << session_id << " is disconnected" << std::endl;
+            break;
+        }
+        else{
+            std::cout << "[+] new agent connected" << std::endl;
+            std::cout << "agent id : " << std::this_thread::get_id() << std::endl;
+        }
+
+    }
 }
+
+
+
+// void server::operator_control(std::unordered_map<uint32_t, int> session_registry, int session_id){
+
+// }
+
 
 
 void server::listener(){
@@ -196,16 +219,16 @@ void server::listener(){
         common::accept_failed(client_fd);
         int session_id = get_session_id();
         session_registry[session_id] = client_fd; // mapping session_id to client_fd using unorderd_map 
-        display_session_information(session_registry);
-        std::thread client(&server::handle_multiple_clients, this, client_fd, session_id);
+        std::thread client(&server::client_handler, this, client_fd, session_id, &session_registry); // pass the address of original session_registry hash table
         // handle_multiple_clients() is a member function of the server class.
         // &server::handle_multiple_clients gives a pointer to that member function.
         // It identifies which member function the new thread should execute.
         // this keyword is used to tell the pointer which server object should it point to. In this case the current server object 
         client.detach();
-        int client_fd1 = choose_session(session_registry);
-        send_commands(client_fd1, session_id); // send msg to client
-        // receive stdout of the command executed in the agent.cpp side
+        // int session_id1 = choose_session(session_registry);
+        // send_commands(session_registry[session_id1], session_id1); // send msg to client
+        // // receive stdout of the command executed in the agent.cpp side
+        display_session_information(session_registry);
     }
     std::cout << "[-]server exiting..." << std::endl;
     close(server_fd); // close server_socket created for listening

@@ -1,7 +1,7 @@
 #include "server.hpp"
 
 int main(){
-    server server1;
-    server1.listener();
+    server myserver;
+    myserver.listener();
     return 0;
 }
