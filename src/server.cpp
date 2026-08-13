@@ -121,18 +121,15 @@ packet packet_wrapping(std::string command, int session_id){
 }
 
 
-int server::choose_session(std::unordered_map<uint32_t, int> session_registry){
+int server::choose_session(std::unordered_map<uint32_t, int> *session_registry){
     uint32_t session_id;
-    while(true){
-        std::cout << "Choose session_id : ";
-        std::cin >> session_id;
-        if(session_registry.contains(session_id)){
-            return session_id;
-        }    
-        else{
-            std::cout << "[*] invalid session input" << std::endl;
-
-        }
+    std::cout << "Choose session_id : ";
+    std::cin >> session_id;
+    if(session_registry->contains(session_id)){
+        return session_id;
+    }    
+    else{
+        std::cout << "[*] invalid session input" << std::endl;
     }
 }
 
@@ -182,14 +179,8 @@ void server::detect_active_agents(int client_fd, int session_id, std::unordered_
             }
         }
     }
-    display_active_agents(session_registry);
+    //display_active_agents(session_registry);
 }
-
-
-
-// void server::operator_control(std::unordered_map<uint32_t, int> session_registry, int session_id){
-
-// }
 
 
 
@@ -239,10 +230,6 @@ void server::listener(){
         // It identifies which member function the new thread should execute.
         // this keyword is used to tell the pointer which server object should it point to. In this case the current server object 
         client.detach();
-        // int session_id1 = choose_session(session_registry);
-        // send_commands(session_registry[session_id1], session_id1); // send msg to client
-        // // receive stdout of the command executed in the agent.cpp side
-        display_active_agents(&session_registry);
     }
     std::cout << "[-]server exiting..." << std::endl;
     close(server_fd); // close server_socket created for listening
