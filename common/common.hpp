@@ -1,5 +1,6 @@
 #pragma once
-#define PORT 1234
+#define AGENT_PORT 1234
+#define OPERATOR_PORT 9000
 
 class common{
     public:

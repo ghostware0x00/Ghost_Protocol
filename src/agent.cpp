@@ -91,7 +91,7 @@ void agent::receive_commands(){
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET; // IPv4 address
     server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // localhost
-    server_address.sin_port = htons(PORT); // port 1234 assigned
+    server_address.sin_port = htons(AGENT_PORT); // port 1234 assigned
     //char server_response[100];
     // payload header storage
     // we using &byte_array 

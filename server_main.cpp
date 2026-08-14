@@ -2,6 +2,7 @@
 
 int main(){
     server myserver;
-    myserver.listener();
+    myserver.agent_listener();
+    myserver.operator_listener();
     return 0;
 }

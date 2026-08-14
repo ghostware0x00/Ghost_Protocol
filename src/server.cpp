@@ -33,11 +33,10 @@ void common::socket_check(int soc_fd){ // socket failure error handling
 
 
 void common::accept_failed(int client_fd){
-    if(client_fd < 0){
-        std::perror("[*]couldn't accept connection");
-        std::cout << std::endl;
-        close(client_fd);
-    }
+    // client_fd < 0
+    std::perror("[*]couldn't accept connection");
+    std::cout << std::endl;
+    close(client_fd);
 }
 
 
@@ -130,6 +129,7 @@ int server::choose_session(std::unordered_map<uint32_t, int> *session_registry){
     }    
     else{
         std::cout << "[*] invalid session input" << std::endl;
+        return -1;
     }
 }
 
@@ -137,8 +137,8 @@ int server::choose_session(std::unordered_map<uint32_t, int> *session_registry){
 void server::send_commands(int soc_fd, int session_id){ // send message to client
     std::string command;
     packet p1;
-    std::cout << "Enter command : " << std::endl;
-    std::getline(std::cin >> std::ws, command);
+    // std::cout << "Enter command : " << std::endl;
+    // std::getline(std::cin >> std::ws, command);
     p1 = packet_wrapping(command, session_id);
     std::vector<uint8_t> byte_array = serialization(p1);
     // instead of soc_fd we need to send session_registry[session_id] to send commands to that particular data only
@@ -184,7 +184,37 @@ void server::detect_active_agents(int client_fd, int session_id, std::unordered_
 
 
 
-void server::listener(){
+void server::operator_listener(){
+    std::println("[+] server listening on 0.0.0.0 port {} for OPERATOR",OPERATOR_PORT);
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    common::socket_check(server_fd);
+    struct sockaddr_in server_address;
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons(OPERATOR_PORT);
+    int opt = 1;
+    if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt) < 0)){
+        setsockopt_failed(server_fd);
+    }
+    if(bind(server_fd, (struct sockaddr*) &server_address, sizeof(server_address) < 0)){
+        bind_failed(server_fd);
+    }
+    listen(server_fd, 1);
+    while(true){
+        std::cout << "[*] waiting for connections (operator)" << std::endl;
+        int client_fd = accept(server_fd, NULL, NULL);
+        if(client_fd < 0){
+            common::accept_failed(client_fd);
+            continue;
+        }
+        std::cout << "[+] operator connected" << std::endl;
+        break;
+    }
+}
+
+
+
+void server::agent_listener(){
     /*
     listener of tcp requires to perform the below functions
     1. socket creation
@@ -193,13 +223,13 @@ void server::listener(){
     4. listen
     5. accept
     */
-    std::println("[+] server listening on 0.0.0.0 port {}", PORT);
+    std::println("[+] server listening on 0.0.0.0 port {} FOR AGENT", AGENT_PORT);
     int server_fd = socket(AF_INET, SOCK_STREAM, 0); // creating socket
     common::socket_check(server_fd);
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET; // IPv4 address
     server_address.sin_addr.s_addr = INADDR_ANY; //  accept conncetions from all network interfaces 0.0.0.0
-    server_address.sin_port = htons(PORT); // listen to port 1234
+    server_address.sin_port = htons(AGENT_PORT); // listen to port 1234
     int opt = 1;
     if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
         // the server cant connect because the operating system holds the ports in a TIME_WAIT STATE
@@ -211,12 +241,16 @@ void server::listener(){
         bind_failed(server_fd);
     }
     
-    listen(server_fd, 2); // listening (max connection in queue = 2)
+    listen(server_fd, 1); // listening (max connection in queue = 2)
     while(true){ // kept in loop so that multiple clients can be handled
         // like if one agent connection is lost or connected the loop will start from while(true) again and try to accept new agent connection
-        std::cout << "[*] waiting for connections" << std::endl;
+        std::cout << "[*] waiting for connections (agent)" << std::endl;
         int client_fd = accept(server_fd, NULL, NULL); // accept connections from client
-        common::accept_failed(client_fd);
+        if(client_fd < 0){
+            common::accept_failed(client_fd);
+            continue; // skips the rest of the below logic and retries accept()
+        }
+        std::cout << "[+] an agent connected" << std::endl;
         int session_id = get_session_id();
         // the locking is required because multiple agents might insert data at the same time
         {
