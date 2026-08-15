@@ -1,16 +1,17 @@
 import sys
+import cli
 
 def help_usage():
-    help =(
-        "help"
-        "sessions"
-        "use <session_id>"
-        "back"
-        "execute <command>"
+    help_commands = [
+        "help",
+        "sessions",
+        "use <session_id>",
+        "back",
+        "execute <command>",
         "exit"
-    )
+    ]
     print(f"Available Commands : ")
-    print(f"\n".join(help))
+    print(f"\n".join(help_commands))
 
 
 def sessions_usage():
@@ -29,6 +30,7 @@ def execute_cmd_usage():
 
 
 def exit_usage():
+    print(f"[-]Exiting Operator Console")
     sys.exit() # returns statsu code 0 and exits program
 
 
@@ -41,3 +43,13 @@ command_dispatcher = {
     "execute": execute_cmd_usage,
     "exit": exit_usage
 }
+
+def dispatch():
+    while True:
+        command = cli.command_input_prompt()
+        if command in command_dispatcher:
+            command_dispatcher[command]() # using the command key to call the associated function of the key")
+        else:
+            print(f"[-] invalid command entered")
+            command_dispatcher["help"]()
+        
