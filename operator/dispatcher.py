@@ -45,6 +45,7 @@ command_dispatcher = {
 }
 
 def dispatch():
+    print(f"[+] %%%%%%% starting ghost protocol %%%%%%%")
     while True:
         command = cli.command_input_prompt()
         if command in command_dispatcher:
