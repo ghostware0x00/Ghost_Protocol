@@ -179,7 +179,7 @@ void server::detect_active_agents(int client_fd, int session_id, std::unordered_
             }
         }
     }
-    //display_active_agents(session_registry);
+    display_active_agents(session_registry);
 }
 
 
@@ -193,10 +193,10 @@ void server::operator_listener(){
     server_address.sin_addr.s_addr = INADDR_ANY;
     server_address.sin_port = htons(OPERATOR_PORT);
     int opt = 1;
-    if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt) < 0)){
+    if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
         setsockopt_failed(server_fd);
     }
-    if(bind(server_fd, (struct sockaddr*) &server_address, sizeof(server_address) < 0)){
+    if(bind(server_fd, (struct sockaddr*) &server_address, sizeof(server_address)) < 0){
         bind_failed(server_fd);
     }
     listen(server_fd, 1);
@@ -258,6 +258,7 @@ void server::agent_listener(){
             session_registry[session_id] = client_fd; // mapping session_id to client_fd using unorderd_map 
             // after this lock will be unlocked automatically cuz out of scope
         }
+        display_active_agents(&session_registry);
         std::thread client(&server::detect_active_agents, this, client_fd, session_id, &session_registry); // pass the address of original session_registry hash table
         // handle_multiple_clients() is a member function of the server class.
         // &server::handle_multiple_clients gives a pointer to that member function.
