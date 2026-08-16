@@ -1,4 +1,3 @@
-import connection
 import dispatcher
 
 def main():
