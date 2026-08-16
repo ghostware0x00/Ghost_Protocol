@@ -13,7 +13,7 @@ class server{
         void agent_listener();
         void operator_listener();
         void send_commands_agent(int soc_fd, int session_id);
-        void receive_commands_operator(int client_fd);
+        //void receive_commands_operator(int client_fd);
         void command_dispatcher(); // function will be used to call the associated function based on the command supplied by the operator
         int get_session_id();
         void detect_active_agents(int client_fd, int session_id, std::unordered_map<uint32_t, int> *session_registry); // passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time

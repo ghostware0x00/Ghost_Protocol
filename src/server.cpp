@@ -183,19 +183,19 @@ void server::detect_active_agents(int client_fd, int session_id, std::unordered_
 }
 
 
-void server::receive_commands_operator(int client_fd){
-    /* TO DO */
-    uint32_t command_length = 32;
-    int receive_counter = 0;
-    int bytes_received = 0;
-    char bytearray_command[32] = {}; // array where command data received in bytes
-    do{
-        bytes_received = recv(client_fd, bytearray_command + receive_counter, command_length-receive_counter, 0);
-        if(bytes_received > 0){
-            receive_counter += bytes_received;
-        }
-    }while(bytes_received != command_length);
-}
+// void server::receive_commands_operator(int client_fd){ // function to receive commands 
+//     /* TO DO */
+//     uint32_t command_length = 32;
+//     int receive_counter = 0;
+//     int bytes_received = 0;
+//     char bytearray_command[32] = {}; // array where command data received in bytes
+//     do{
+//         bytes_received = recv(client_fd, bytearray_command + receive_counter, command_length-receive_counter, 0);
+//         if(bytes_received > 0){
+//             receive_counter += bytes_received;
+//         }
+//     }while(bytes_received != command_length);
+// }
 
 
 
@@ -223,7 +223,9 @@ void server::operator_listener(){
             continue;
         }
         std::cout << "[+] operator connected" << std::endl;
-        receive_commands_operator(client_fd);
+        //receive_commands_operator(client_fd); 
+        // read the command length and understand how many bytes to read and then based on that call the respective function
+        // need to deserialize the packet strcuture sent by the python operator
     }
 }
 
