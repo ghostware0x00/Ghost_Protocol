@@ -1,13 +1,14 @@
 import sys
 import cli
+import connection
 
 def help_usage():
     help_commands = [
         "help",
         "sessions",
-        "use <session_id>",
+        "use <session_id>", # using this we login to the target's shell and then execute commands 
         "back",
-        "execute <command>",
+        #"execute <command>",
         "exit"
     ]
     print(f"Available Commands : ")
@@ -15,7 +16,9 @@ def help_usage():
 
 
 def sessions_usage():
-    pass
+    print(f"[*] Listing sessions")
+    data = connection.connect("sessions")
+
 
 
 
