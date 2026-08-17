@@ -7,6 +7,11 @@ TARGET_IP = "127.0.0.1"
 HOST = "0.0.0.0"
 
 def packet_formation(command):
+#     +----------------------+----------------------+
+#     | Command Length       | Command              |
+#     | 4 bytes              | N bytes              |
+#     +----------------------+----------------------+
+#         uint32              variable
     command_bytes = command.encode()
     command_length = len(command_bytes)
     command_len_bytes = struct.pack(">I", command_length) # > = big endian. this is to ensure that data sent is in big endian format just like the sockets expect it so that there is uniformity in byte ordering during sending and receiving without any byte ordering issues in the server side
