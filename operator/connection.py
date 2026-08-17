@@ -1,10 +1,17 @@
 import socket
+import struct
 
 command_dispather = ["help", "exit"]
 TARGET_PORT = 9000
 TARGET_IP = "127.0.0.1"
 HOST = "0.0.0.0"
 
+def packet_formation(command):
+    command_bytes = command.encode()
+    command_length = len(command_bytes)
+    command_len_bytes = struct.pack(">I", command_length) # > = big endian. this is to ensure that data sent is in big endian format just like the sockets expect it so that there is uniformity in byte ordering during sending and receiving without any byte ordering issues in the server side
+    packet_bytes = command_len_bytes + command_bytes
+    return packet_bytes
 
 
 
@@ -14,7 +21,8 @@ def connect(command):
         try:
             operator_console.connect((TARGET_IP, TARGET_PORT))
             print(f"[+] operator connected to server successfully")
-            operator_console.sendall(command.encode())
+            packet_bytes = packet_formation(command)
+            operator_console.sendall(packet_bytes)
             while True:
                 data = operator_console.recv(4096)
                 if not data:
