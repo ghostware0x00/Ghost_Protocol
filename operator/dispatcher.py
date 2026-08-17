@@ -54,6 +54,6 @@ def dispatch():
         if command in command_dispatcher:
             command_dispatcher[command]() # using the command key to call the associated function of the key")
         else:
-            print(f"[-] invalid command entered")
+            print(f"gho$t shell usage :- ")
             command_dispatcher["help"]()
         

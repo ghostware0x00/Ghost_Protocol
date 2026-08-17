@@ -2,10 +2,8 @@
 
 ### WHAT TO DO NOW
 
-- first build python command sending packet structure
-- this is important cuz it will help server.cpp undestand the command length and then based on that know how much to read and then call that particular function
-
-- LEARN PYTHON STRUCT
+- python packet structure is done using python struct
+- now deserialize or read the data sent in bytes from python in the server.cpp and understand the command sent and command length and based on that perform the operation
 
 ### WHAT TO DO AFTER THAT 
 
