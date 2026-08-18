@@ -3,7 +3,11 @@
 ### WHAT TO DO NOW
 
 - python packet structure is done using python struct
-- now deserialize or read the data sent in bytes from python in the server.cpp and understand the command sent and command length and based on that perform the operation
+- now deserialize or read the data sent in bytes from python in the server.cpp and understand the command sent and command length and based on that perform the operation (done)
+
+- now implement display sessions command 
+    - the sessions table should be displayed in the operator side
+    
 
 ### WHAT TO DO AFTER THAT 
 
