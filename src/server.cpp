@@ -57,6 +57,19 @@ void server::bind_failed(int server_fd){
 }
 
 
+void common::connection_failed(int connection_status){
+    if(connection_status == 0){
+        std::perror("[-]server disconnected connection");
+        std::cout << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    else{
+        std::perror("[-]receive failed");
+        std::cout << std::endl;
+    }
+}
+
+
 std::vector<uint8_t> serialization(packet p1){
     size_t total_size = sizeof(p1.command_length) + sizeof(p1.session_id) + sizeof(p1.heartbeat) + p1.command.length();
     // doing sizeof(p1) causes padding of bytes so we will get wrong data 
@@ -232,7 +245,9 @@ void server::operator_listener(){
         std::cout << "[+] operator connected" << std::endl;
         // command length will be of 4 bytes so we will accept for bytes first
         uint8_t command_length_bytes[4]; // unsigned 4 byte byte_array to receive the complete 4 byte value of the command length
-        int recv_byte_counter = 0, command_len= 4, bytes_received = 0;
+        size_t command_len= 4; 
+        int bytes_received = 0;
+        size_t recv_byte_counter = 0;
         do{
             bytes_received = recv(client_fd, command_length_bytes+recv_byte_counter, command_len-recv_byte_counter, 0);
             if(bytes_received > 0){
