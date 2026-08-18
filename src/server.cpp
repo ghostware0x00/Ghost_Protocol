@@ -197,6 +197,13 @@ void server::detect_active_agents(int client_fd, int session_id, std::unordered_
 //     }while(bytes_received != command_length);
 // }
 
+uint32_t server::deserialize_commandLenBytes(uint8_t command_length_bytes[]){ // convert the raw bytes sent from the operator to string format
+    uint32_t command_length = 0;
+    std::memcpy(&command_length, command_length_bytes, 4); // copy 4 bytes data to command_length variable. data stored in uint32_t format and not in raw bytes
+    command_length = ntohl(command_length);
+    return command_length;
+}
+
 
 
 void server::operator_listener(){
@@ -223,9 +230,29 @@ void server::operator_listener(){
             continue;
         }
         std::cout << "[+] operator connected" << std::endl;
-        //receive_commands_operator(client_fd); 
-        // read the command length and understand how many bytes to read and then based on that call the respective function
-        // need to deserialize the packet strcuture sent by the python operator
+        // command length will be of 4 bytes so we will accept for bytes first
+        uint8_t command_length_bytes[4]; // unsigned 4 byte byte_array to receive the complete 4 byte value of the command length
+        int recv_byte_counter = 0, command_len= 4, bytes_received = 0;
+        do{
+            bytes_received = recv(client_fd, command_length_bytes+recv_byte_counter, command_len-recv_byte_counter, 0);
+            if(bytes_received > 0){
+                recv_byte_counter += bytes_received;
+            }else if(bytes_received <= 0){
+                common::connection_failed(bytes_received);
+            }
+        }while(recv_byte_counter != command_len);
+        // in uint8_t the raw bytes of the command length is present
+        uint32_t command_length = deserialize_commandLenBytes(command_length_bytes);
+        std::string command(command_length, '\0'); // assigning null character to string so that upon receiving the entire command there remains a null character to end the command string
+        bytes_received = 0, recv_byte_counter = 0;
+        do{
+            bytes_received = recv(client_fd, command.data()+recv_byte_counter, command_length-recv_byte_counter, 0);
+            if(bytes_received > 0){
+                recv_byte_counter += bytes_received;
+            }else if(bytes_received <= 0){
+                common::connection_failed(bytes_received);
+            }
+        }while(recv_byte_counter != command_length);
     }
 }
 
