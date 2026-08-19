@@ -1,4 +1,6 @@
 import sys
+import os
+import subprocess
 import cli
 import connection
 
@@ -8,6 +10,7 @@ def help_usage():
         "sessions",
         "use session", # using this we login to the target's shell and then execute commands 
         "back",
+        "clear",
         #"execute <command>",
         "exit"
     ]
@@ -17,9 +20,12 @@ def help_usage():
 
 def sessions_usage():
     print(f"[*] Listing sessions")
-    data = connection.connect("sessions")
+    connection.connect("sessions")
 
 
+
+def clear_usage():
+    subprocess.run("clear", shell=True)
 
 
 def back_usage():
@@ -44,16 +50,22 @@ command_dispatcher = {
     "sessions": sessions_usage,
     "back": back_usage,
     "execute": execute_cmd_usage,
+    "clear": clear_usage,
     "exit": exit_usage
 }
 
 def dispatch():
     print(f"[+] %%%%%%% starting ghost protocol %%%%%%%")
     while True:
-        command = cli.command_input_prompt()
-        if command in command_dispatcher:
-            command_dispatcher[command]() # using the command key to call the associated function of the key")
-        else:
-            print(f"gho$t shell usage :- ")
-            command_dispatcher["help"]()
+        try:
+            command = cli.command_input_prompt()
+            if command in command_dispatcher:
+                command_dispatcher[command]() # using the command key to call the associated function of the key")
+            else:
+                print(f"gho$t shell usage :- ")
+                command_dispatcher["help"]()
+        except KeyboardInterrupt:
+            print(f"\n[-]exiting ghost protocol console")
+            os._exit(0)
+
         

@@ -75,9 +75,21 @@ void common::connection_failed(int connection_status){
 }
 
 
-void server::command_dispatcher(std::string command){
+void server::get_active_agents(int client_fd){ // function to send number of sessions present and session ids to operator console
+    std::unique_lock<std::mutex> lock(session_reg_mutex);
+    uint32_t sessionCount = htonl(session_registry.size()); 
+    send(client_fd, &sessionCount, sizeof(sessionCount), 0); // sending session count
+    for(auto session : session_registry){
+        uint32_t session_id = htonl(session.first);
+        send(client_fd, &session_id, sizeof(session_id), 0); // sending session id
+    }
+    close(client_fd);
+}
+
+
+void server::command_dispatcher(std::string command, int client_fd){
     if(command == "sessions"){
-        display_active_agents();
+        get_active_agents(client_fd);
     }
 }
 
@@ -280,6 +292,7 @@ void server::operator_listener(){
                 common::connection_failed(bytes_received);
             }
         }while(recv_byte_counter != command_length);
+        command_dispatcher(command, client_fd);
     }
 }
 
@@ -330,7 +343,7 @@ void server::agent_listener(){
             // after this lock will be unlocked automatically cuz out of scope
         }
         display_active_agents();
-        std::thread client(&server::detect_active_agents, this, client_fd); // pass the address of original session_registry hash table
+        std::thread client(&server::detect_active_agents, this, client_fd, session_id); // pass the address of original session_registry hash table
         // handle_multiple_clients() is a member function of the server class.
         // &server::handle_multiple_clients gives a pointer to that member function.
         // It identifies which member function the new thread should execute.
