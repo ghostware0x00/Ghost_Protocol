@@ -14,6 +14,11 @@
 // #include <openssl/ssl.h> // using openssl to encrypt the open socket communication
 // #include <openssl/err.h>
 
+char commandList[][30] = {
+    "sessions",
+    "use session"
+};
+
 std::mutex session_reg_mutex; // global locker variable created
 
 void common::code_exit(){
@@ -70,6 +75,13 @@ void common::connection_failed(int connection_status){
 }
 
 
+void server::command_dispatcher(std::string command){
+    if(command == "sessions"){
+        display_active_agents();
+    }
+}
+
+
 std::vector<uint8_t> serialization(packet p1){
     size_t total_size = sizeof(p1.command_length) + sizeof(p1.session_id) + sizeof(p1.heartbeat) + p1.command.length();
     // doing sizeof(p1) causes padding of bytes so we will get wrong data 
@@ -97,17 +109,17 @@ std::vector<uint8_t> serialization(packet p1){
 
 
 // DEMO FUNCTION FOR DEBUGGIN PURPORSES
-void server::display_active_agents(std::unordered_map<uint32_t, int> *session_registry){
+void server::display_active_agents(){
     // display function here is kept inside mutex because if one agent is connected and another one disconnects
     // the display will cause problems so mutex is applied so that display is shown properly without any issue cuz iterating over the session_registry is still reading.
     std::unique_lock<std::mutex> lock(session_reg_mutex);
-    if(session_registry->empty()){
+    if(session_registry.empty()){
         std::cout << "[*] no active agents are available" << std::endl;
         return;
     }
     std::cout << "___________________________________________" << std::endl;
     std::println("{:<20}{:<20}", "Session ID", "Client FD");
-    for(auto session_reg : *session_registry){
+    for(auto session_reg : session_registry){
         std::println("{:<20}{:<20}", session_reg.first, session_reg.second);
     }
     std::cout << "___________________________________________" << std::endl;
@@ -133,11 +145,11 @@ packet packet_wrapping(std::string command, int session_id){
 }
 
 
-int server::choose_session(std::unordered_map<uint32_t, int> *session_registry){
+int server::choose_session(){
     uint32_t session_id;
     std::cout << "Choose session_id : ";
     std::cin >> session_id;
-    if(session_registry->contains(session_id)){
+    if(session_registry.contains(session_id)){
         return session_id;
     }    
     else{
@@ -161,7 +173,7 @@ void server::send_commands_agent(int soc_fd, int session_id){ // send message to
 }
 
 
-void server::detect_active_agents(int client_fd, int session_id, std::unordered_map<uint32_t, int> *session_registry){
+void server::detect_active_agents(int client_fd, int session_id){
     /*
                         SERVER
                       |
@@ -186,13 +198,13 @@ void server::detect_active_agents(int client_fd, int session_id, std::unordered_
             close(client_fd);
             {
                 std::unique_lock<std::mutex> lock_session_reg(session_reg_mutex); // locks the below code and automatically performs lock_session.unlock() when goes out of function scope unless explicitly called. This lock makes sure when multiple agents don't access session_registry at the same time. only when one finishes the other can modify it. Without locking multiple modifications of the session_registry at the same time might result in program crash or segmentation faults. []
-                session_registry->erase(session_id); // since session_registry is a pointer so we use arrow operator
+                session_registry.erase(session_id); // since session_registry is a pointer so we use arrow operator
                 std::cout << "[-]agent id : " << session_id << " is disconnected" << std::endl;
                 break;
             }
         }
     }
-    display_active_agents(session_registry);
+    display_active_agents();
 }
 
 
@@ -317,8 +329,8 @@ void server::agent_listener(){
             session_registry[session_id] = client_fd; // mapping session_id to client_fd using unorderd_map 
             // after this lock will be unlocked automatically cuz out of scope
         }
-        display_active_agents(&session_registry);
-        std::thread client(&server::detect_active_agents, this, client_fd, session_id, &session_registry); // pass the address of original session_registry hash table
+        display_active_agents();
+        std::thread client(&server::detect_active_agents, this, client_fd); // pass the address of original session_registry hash table
         // handle_multiple_clients() is a member function of the server class.
         // &server::handle_multiple_clients gives a pointer to that member function.
         // It identifies which member function the new thread should execute.

@@ -6,7 +6,7 @@ def help_usage():
     help_commands = [
         "help",
         "sessions",
-        "use <session_id>", # using this we login to the target's shell and then execute commands 
+        "use session", # using this we login to the target's shell and then execute commands 
         "back",
         #"execute <command>",
         "exit"
