@@ -2,5 +2,7 @@
 
 ### WHAT TO DO NOW
 
-- implement `use sessions` command 
+
+- first optimize the code, clean the code, remove uncessary variables or logic stuff, handle edge cases first before moving on.
+- after implementing the above stuff do this -> implement `use sessions` command 
     - this is leading to targetted message input 

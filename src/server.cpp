@@ -14,10 +14,6 @@
 // #include <openssl/ssl.h> // using openssl to encrypt the open socket communication
 // #include <openssl/err.h>
 
-char commandList[][30] = {
-    "sessions",
-    "use session"
-};
 
 std::mutex session_reg_mutex; // global locker variable created
 
@@ -140,8 +136,7 @@ void server::display_active_agents(){
 
 
 int server::get_session_id(){
-    srand(time(0)); // setting the current time as seed value so that rand() number is new everytime
-    int session_id = rand();
+    session_id++;
     return session_id;
 }
 

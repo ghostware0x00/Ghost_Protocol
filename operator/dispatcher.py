@@ -14,12 +14,14 @@ def help_usage():
         #"execute <command>",
         "exit"
     ]
-    print(f"Available Commands : ")
+    print(f"-"*20)
+    print(f"Available commands : ")
+    print(f"-"*20)
     print(f"\n".join(help_commands))
 
 
 def sessions_usage():
-    print(f"[*] Listing sessions")
+    print(f"\n[*]Listing sessions")
     connection.connect("sessions")
 
 
@@ -55,14 +57,12 @@ command_dispatcher = {
 }
 
 def dispatch():
-    print(f"[+] %%%%%%% starting ghost protocol %%%%%%%")
     while True:
         try:
             command = cli.command_input_prompt()
             if command in command_dispatcher:
                 command_dispatcher[command]() # using the command key to call the associated function of the key")
             else:
-                print(f"gho$t shell usage :- ")
                 command_dispatcher["help"]()
         except KeyboardInterrupt:
             print(f"\n[-]exiting ghost protocol console")

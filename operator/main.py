@@ -1,9 +1,10 @@
 import dispatcher
 
 def main():
+    print(f"[*] Initiating ghost protocol")
+    with open("../banner/banner.txt", "r") as file:
+        print(file.read(),"\n")
     dispatcher.dispatch()
-    #connection.server_connect()
-    #send_command_loop()
 
 
 if __name__ == "__main__":

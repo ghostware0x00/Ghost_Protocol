@@ -8,6 +8,7 @@ class server{
         // create a session_registry structure
         // so that we can map a new agent using session_id and client fd 
         // targetting an individual agent will help us to send specific commands to that client without overlapping with other agents
+        uint32_t session_id = 0;
         std::unordered_map<uint32_t, int> session_registry;
     public:
         //void operator_control(std::unordered_map<uint32_t, int> session_registry, int session_id);

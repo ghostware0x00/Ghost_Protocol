@@ -1,22 +1,12 @@
 import socket
 import struct
 import protocol
+import console
 
 command_dispather = ["help", "exit"]
 TARGET_PORT = 9000
 TARGET_IP = "127.0.0.1"
 HOST = "0.0.0.0"
-
-
-
-def display_sessionInfo(sessionId_List, sessionCount):
-    print(f"Total Active Sessions : {sessionCount}")
-    if sessionCount > 0:
-        print(f"{'Active Sessions':<30}")
-        for session_id in sessionId_List:
-            print(f"{session_id:<30}")
-    else:
-        print(f"[-] no active sessions available")
 
 
 
@@ -40,7 +30,7 @@ def receive_sessionInfo(operator_socket, sessionCount_size): # deserialize sessi
         sessionId_Bytes = receive_exact(operator_socket, 4) # receive session_id which is 4 bytes per session_id
         session_id = struct.unpack("!I", sessionId_Bytes)[0]
         sessionId_List.append(session_id)
-    display_sessionInfo(sessionId_List, sessionCount)
+    console.display_sessionInfo(sessionId_List, sessionCount)
 
 
 
