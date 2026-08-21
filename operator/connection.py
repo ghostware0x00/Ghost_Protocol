@@ -30,7 +30,8 @@ def receive_sessionInfo(operator_socket, sessionCount_size): # deserialize sessi
         sessionId_Bytes = receive_exact(operator_socket, 4) # receive session_id which is 4 bytes per session_id
         session_id = struct.unpack("!I", sessionId_Bytes)[0]
         sessionId_List.append(session_id)
-    console.display_sessionInfo(sessionId_List, sessionCount)
+    #console.display_sessionInfo(sessionId_List, sessionCount)
+    return sessionId_List, sessionCount
 
 
 
@@ -43,7 +44,8 @@ def connect(command):
             operator_socket.sendall(packet_bytes)
             while True:
                 if command == "sessions":
-                    receive_sessionInfo(operator_socket, 4) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
+                    sessionList, sessionCount = receive_sessionInfo(operator_socket, 4) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
+                    console.display_sessionInfo(sessionList, sessionCount)
                     break
         except OSError as e:
             print(f"[-]couldn't connect to c2 server\n")
