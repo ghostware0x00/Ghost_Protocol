@@ -41,7 +41,7 @@ def execute_cmd_usage():
 
 
 def exit_usage():
-    print(f"[-]Exiting Operator Console")
+    print(f"[-]exiting ghost protocol\n")
     sys.exit() # returns statsu code 0 and exits program
 
 
@@ -65,7 +65,7 @@ def dispatch():
             else:
                 command_dispatcher["help"]()
         except KeyboardInterrupt:
-            print(f"\n[-]exiting ghost protocol console")
+            print(f"\n[-]exiting ghost protocol\n")
             os._exit(0)
 
         

@@ -46,6 +46,5 @@ def connect(command):
                     receive_sessionInfo(operator_socket, 4) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
                     break
         except OSError as e:
-            print(f"[-]couldn't connect to c2 server")
-            print(f"{e}")
+            print(f"[-]couldn't connect to c2 server\n")
             operator_socket.close()
