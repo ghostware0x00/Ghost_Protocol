@@ -97,7 +97,7 @@ void server::get_active_agents(int client_fd){ // function to send number of ses
         close(client_fd);
         return;
     }
-    std::unique_lock<std::mutex>lock(session_reg_mutex);
+    lock.lock();
     for(auto session : session_registry){
         flag = 0;
         total_bytesSent = 0;
