@@ -62,8 +62,11 @@ def dispatch():
             command = cli.command_input_prompt()
             if command in command_dispatcher:
                 command_dispatcher[command]() # using the command key to call the associated function of the key")
+            elif command == "":
+                continue
             else:
                 command_dispatcher["help"]()
+            print()
         except KeyboardInterrupt:
             print(f"\n[-]exiting ghost protocol\n")
             os._exit(0)

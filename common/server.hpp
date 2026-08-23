@@ -15,6 +15,7 @@ class server{
         void agent_listener();
         void operator_listener();
         void send_commands_agent(int soc_fd, int session_id);
+        void operator_data_recvHandling(int received_bytes, int client_fd);
         uint32_t deserialize_commandLenBytes(uint8_t command_length_bytes[]);
         void command_dispatcher(std::string command, int client_fd); // function will be used to call the associated function based on the command supplied by the operator
         int get_session_id();

