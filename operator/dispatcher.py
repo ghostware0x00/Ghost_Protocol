@@ -3,6 +3,7 @@ import os
 import subprocess
 import cli
 import connection
+import colors
 
 def help_usage():
     help_commands = [
@@ -15,13 +16,13 @@ def help_usage():
         "exit"
     ]
     print(f"-"*20)
-    print(f"Available commands : ")
+    print(f"{colors.Fore.GREEN}Available commands : ")
     print(f"-"*20)
     print(f"\n".join(help_commands))
 
 
 def sessions_usage():
-    print(f"\n[*]Listing sessions")
+    print(f"\n{colors.Style.BRIGHT}{colors.Fore.YELLOW}[*]Listing sessions")
     connection.connect("sessions")
 
 
@@ -41,7 +42,7 @@ def execute_cmd_usage():
 
 
 def exit_usage():
-    print(f"[-]exiting ghost protocol\n")
+    print(f"{colors.Fore.RED}[!]exiting ghost protocol\n")
     sys.exit() # returns statsu code 0 and exits program
 
 
@@ -68,7 +69,7 @@ def dispatch():
                 command_dispatcher["help"]()
             print()
         except KeyboardInterrupt:
-            print(f"\n[-]exiting ghost protocol\n")
+            print(f"\n[!]exiting ghost protocol\n")
             os._exit(0)
 
         

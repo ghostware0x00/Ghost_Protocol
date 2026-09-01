@@ -2,6 +2,7 @@ import socket
 import struct
 import protocol
 import console
+import colors
 
 command_dispather = ["help", "exit"]
 TARGET_PORT = 9000
@@ -15,7 +16,7 @@ def receive_exact(operator_socket, length): # function to receive the data in ch
     while len(data) < length:
         chunk = operator_socket.recv(length - len(data))
         if not chunk:
-            raise ConnectionError("c2 server closed connection")
+            raise ConnectionError(f"{colors.Fore.RED} [!] c2 server closed connection")
         data += chunk
     return data
 
@@ -48,5 +49,5 @@ def connect(command):
                     console.display_sessionInfo(sessionList, sessionCount)
                     break
         except OSError as e:
-            print(f"[-]couldn't connect to c2 server\n")
+            print(f"{colors.Fore.RED}[!] couldn't connect to c2 server\n")
             operator_socket.close()
