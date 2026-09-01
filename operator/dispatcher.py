@@ -26,6 +26,9 @@ def sessions_usage():
     connection.connect("sessions")
 
 
+def choose_session(): # to do (IMPLEMENT USE or choose a session)
+    pass
+
 
 def clear_usage():
     subprocess.run("clear", shell=True)
@@ -51,6 +54,7 @@ def exit_usage():
 command_dispatcher = {
     "help": help_usage,
     "sessions": sessions_usage,
+    "use": choose_session,
     "back": back_usage,
     "execute": execute_cmd_usage,
     "clear": clear_usage,
