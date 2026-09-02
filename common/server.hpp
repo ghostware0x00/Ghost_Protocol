@@ -14,7 +14,7 @@ class server{
             uint16_t port;
         };
         uint32_t session_id = 0;
-        std::unordered_map<uint32_t, int> session_registry;
+        std::unordered_map<uint32_t, SessionInfo> session_registry;
     public:
         //void operator_control(std::unordered_map<uint32_t, int> session_registry, int session_id);
         void agent_listener();

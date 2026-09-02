@@ -175,15 +175,20 @@ void server::display_active_agents(){
     // the display will cause problems so mutex is applied so that display is shown properly without any issue cuz iterating over the session_registry is still reading.
     std::unique_lock<std::mutex> lock(session_reg_mutex);
     if(session_registry.empty()){
-        std::cout << "[*] no active agents are available" << std::endl;
+        std::cout << "[!] no active agents present"<< std::endl;
         return;
     }
-    std::cout << "___________________________________________" << std::endl;
-    std::println("{:<20}{:<20}", "Session ID", "Client FD");
-    for(auto session_reg : session_registry){
-        std::println("{:<20}{:<20}", session_reg.first, session_reg.second);
+    std::println("{:<15}{:<20}{:<15}{:<10}", "Session_ID", "IP Address", "Client_FD", "Port");
+    std::println("{}", std::string(65, '_'));
+    for(auto session_info : session_registry){
+            std::println("{:<15}{:<20}{:<15}{:<10}",
+            session_info.first,
+            session_info.second.ip_address,
+            session_info.second.client_fd,
+            session_info.second.port
+        );
     }
-    std::cout << "___________________________________________" << std::endl;
+    std::println("{}", std::string(65, '_'));
 }
 
 
@@ -405,7 +410,11 @@ void server::agent_listener(){
         // the locking is required because multiple agents might insert data at the same time
         {
             std::unique_lock<std::mutex> lock(session_reg_mutex);
-            session_registry[session_id] = client_fd; // mapping session_id to client_fd using unorderd_map 
+            session_registry[session_id] = {
+                client_fd,
+                std::string(agent_ip),
+                agent_port 
+            }; // mapping session_id to client_fd using unorderd_map 
             // after this lock will be unlocked automatically cuz out of scope
         }
         display_active_agents();
