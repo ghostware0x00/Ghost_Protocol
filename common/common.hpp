@@ -9,6 +9,8 @@ class common{
         //static void receive_failed(int conn);
         static void accept_failed(int client_fd);
         static void connection_failed(int client_fd);
+        static void getpeername_failed(int client_fd);
+        static void inet_ntop_failed(int client_fd);
         static void code_exit();
 };
 // common socket file descriptor error handling header file

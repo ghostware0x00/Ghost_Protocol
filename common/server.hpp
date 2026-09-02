@@ -8,6 +8,11 @@ class server{
         // create a session_registry structure
         // so that we can map a new agent using session_id and client fd 
         // targetting an individual agent will help us to send specific commands to that client without overlapping with other agents
+        struct SessionInfo{
+            int client_fd;
+            std::string ip_address;
+            uint16_t port;
+        };
         uint32_t session_id = 0;
         std::unordered_map<uint32_t, int> session_registry;
     public:

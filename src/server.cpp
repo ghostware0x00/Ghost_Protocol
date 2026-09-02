@@ -2,6 +2,7 @@
 #include <cstring> // for memcpy()
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <thread> // used to implement multithreading so that tcp server can handle multiple clients
@@ -41,7 +42,21 @@ void common::send_failed(int client_fd){
 
 void common::accept_failed(int client_fd){
     // client_fd < 0
-    std::perror("[*]couldn't accept connection");
+    std::perror("[!]couldn't accept connection");
+    std::cout << std::endl;
+    close(client_fd);
+}
+
+
+void common::inet_ntop_failed(int client_fd){
+    std::perror("[!]failed to convert agent ip address to human readable string");
+    std::cout << std::endl;
+    close(client_fd);
+}
+
+
+void common::getpeername_failed(int client_fd){
+    std::perror("[!]failed to get agent ip address");
     std::cout << std::endl;
     close(client_fd);
 }
@@ -49,7 +64,7 @@ void common::accept_failed(int client_fd){
 
 void server::setsockopt_failed(int server_fd){ 
     // this function is executed when setsockopt fails
-    std::perror("[-]setsockopt failed");
+    std::perror("[!]setsockopt failed");
     close(server_fd);
     std::cout << std::endl;
     exit(EXIT_FAILURE);
@@ -57,7 +72,7 @@ void server::setsockopt_failed(int server_fd){
 
 
 void server::bind_failed(int server_fd){
-    std::perror("[-]server bind failed");
+    std::perror("[!]server bind failed");
     std::cout << std::endl;
     close(server_fd);
     exit(EXIT_FAILURE);
@@ -67,7 +82,7 @@ void server::bind_failed(int server_fd){
 
 void server::operator_data_recvHandling(int received_bytes, int client_fd){
     if(received_bytes == 0)
-        std::cout << "[*] operator disconnected normally" << std::endl;
+        std::cout << "[+] operator disconnected normally" << std::endl;
     else if(received_bytes < 0)
         std::cout << "[!] operator connection error" << std::endl;
     close(client_fd);
@@ -349,6 +364,8 @@ void server::agent_listener(){
     int server_fd = socket(AF_INET, SOCK_STREAM, 0); // creating socket
     common::socket_check(server_fd);
     struct sockaddr_in server_address;
+    struct sockaddr_in agent_address{}; // initialize all the agent_address strcuture to 0 otherwise it would have been garbage value
+    socklen_t agent_address_len = sizeof(agent_address); // allocating agent address length size
     server_address.sin_family = AF_INET; // IPv4 address
     server_address.sin_addr.s_addr = INADDR_ANY; //  accept conncetions from all network interfaces 0.0.0.0
     server_address.sin_port = htons(AGENT_PORT); // listen to port 1234
@@ -373,6 +390,17 @@ void server::agent_listener(){
             continue; // skips the rest of the below logic and retries accept()
         }
         std::cout << "[+] an agent connected" << std::endl;
+        if(getpeername(client_fd, reinterpret_cast<struct sockaddr*>(&agent_address), &agent_address_len) < 0){// getpeername gets the ip address and port in network byte order (in raw bytes) thats why we use inet_htop to convert those raw bytes to human readable string
+            common::getpeername_failed(client_fd);
+            continue;
+        }
+        char agent_ip[INET_ADDRSTRLEN]; // allocating size for storing the human readable ip string (INET_ADDRSTRLEN is a macro for storing IPV4 address) 
+        if(inet_ntop(AF_INET, &agent_address.sin_addr, agent_ip, sizeof(agent_ip)) == nullptr){
+            common::inet_ntop_failed(client_fd);
+            continue;
+        }
+        uint16_t agent_port = ntohs(agent_address.sin_port); // convert agent port which is in network byte order to host byte order
+        std::println("[+]agent address : {}:{}",agent_ip, agent_port);
         int session_id = get_session_id();
         // the locking is required because multiple agents might insert data at the same time
         {
