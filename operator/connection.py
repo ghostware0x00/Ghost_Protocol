@@ -22,7 +22,7 @@ def receive_exact(operator_socket, length): # function to receive the data in ch
 
 
 
-def receive_sessionInfo(operator_socket, sessionCount_size): # deserialize sessionInfo bytes and display total sessions and session ids
+def receive_sessions(operator_socket, sessionCount): # deserialize sessionInfo bytes and display total sessions and session ids
     sessionCount_Bytes = receive_exact(operator_socket, 4) # receive total number of sessions present
     sessionCount = struct.unpack("!I", sessionCount_Bytes)[0] # !I is used to unpack network bytes (Big endian) data into Python integer
     # struct.unpack() returns a tuple, so [0] is used to get only one value
@@ -41,11 +41,11 @@ def connect(command):
         try:
             operator_socket.connect((TARGET_IP, TARGET_PORT))
             #print(f"[+] operator connected to server successfully")
-            packet_bytes = protocol.sessions_packet_formation(command)
+            packet_bytes = protocol.command_packet_formation(command)
             operator_socket.sendall(packet_bytes)
             while True:
                 if command == "sessions":
-                    sessionList, sessionCount = receive_sessionInfo(operator_socket, 4) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
+                    sessionList, sessionCount = receive_sessions(operator_socket, 4) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
                     console.display_sessionInfo(sessionList, sessionCount)
                     break
         except OSError as e:

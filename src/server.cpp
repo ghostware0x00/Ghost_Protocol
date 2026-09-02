@@ -80,6 +80,8 @@ void server::bind_failed(int server_fd){
 
 
 
+// handles operator data during sending
+// if operator disconnects normally or due to connection errors this function is executed
 void server::operator_data_recvHandling(int received_bytes, int client_fd){
     if(received_bytes == 0)
         std::cout << "[+] operator disconnected normally" << std::endl;
@@ -89,50 +91,36 @@ void server::operator_data_recvHandling(int received_bytes, int client_fd){
 }
 
 
-
-
-void server::get_active_agents(int client_fd){ // function to send number of sessions present and session ids to operator console
-    std::unique_lock<std::mutex> lock(session_reg_mutex);
-    uint32_t sessionCount = htonl(session_registry.size()); 
-    lock.unlock();
-    uint32_t total_bytesSent = 0;
-    uint32_t flag = 0;
-    while(total_bytesSent < sizeof(sessionCount)){
-        int bytes_sent = send(client_fd, &sessionCount, sizeof(sessionCount)-total_bytesSent, 0); // sending session count
-        if(bytes_sent == -1){
-            common::send_failed(client_fd);
-            std::cout << "[!] operator disconnected" << std::endl;
-            flag = 1;
-            break;
+// acts as a python's send_all() approximate
+// takes client_fd to send data to the particular agent
+// takes const void *data because we don't know the address of the data we are storing so void * means the datatype of the address I am holding can be anything
+// takes the size_t in length to store value upto 8 bytes or of varying range based on the length 
+bool server::send_all(int client_fd, const void *data, size_t length){
+    size_t total_bytes_sent = 0;
+    while(total_bytes_sent < length){
+        ssize_t bytes_sent = send(client_fd, static_cast<const char*>(data)+total_bytes_sent, length-total_bytes_sent, 0);
+        if(bytes_sent <= 0){
+            return false;
         }
-        else
-            total_bytesSent = total_bytesSent + (size_t)bytes_sent;
+        total_bytes_sent = total_bytes_sent + bytes_sent;
     }
-    if(flag == 1){
-        close(client_fd);
+    return true;
+}
+
+
+void server::get_active_agents(int client_fd){//function to get active agent session_ids and ip address and port
+    uint32_t sessionCount;
+    {
+        std::unique_lock<std::mutex> lock(session_reg_mutex);
+        sessionCount = session_registry.size();
+    }
+    sessionCount = htonl(sessionCount);
+    if(!send_all(client_fd, &sessionCount, sizeof(sessionCount))){
+        common::send_failed(client_fd);
         return;
     }
-    lock.lock();
-    for(auto session : session_registry){
-        flag = 0;
-        total_bytesSent = 0;
-        uint32_t session_id = htonl(session.first);
-        while(total_bytesSent < sizeof(session_id)){
-            int bytes_sent = send(client_fd, &session_id, sizeof(session_id)-total_bytesSent, 0); // sending session id
-            if(bytes_sent == -1){
-                common::send_failed(client_fd);
-                std::cout << "[!] operator disconnected" << std::endl;
-                flag = 1;
-                break;
-            }
-            else
-                total_bytesSent = total_bytesSent + (size_t)bytes_sent;
-        }
-        if(flag == 1)
-            break;
-    }
-    lock.unlock();
-    close(client_fd);
+    
+
 }
 
 

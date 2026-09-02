@@ -27,8 +27,9 @@ def sessions_usage():
     connection.connect("sessions")
 
 
-def choose_session(session_id): # to do (IMPLEMENT USE or choose a session)
+def choose_session(command, session_id): # to do (IMPLEMENT USE or choose a session)
     print(f"[+]session id : {session_id} choosen")
+    print(f"[+]command : {command}")
 
 
 def clear_usage():
@@ -85,14 +86,14 @@ def dispatch():
                     if session_id == None:
                         print(f"{colors.Fore.RED}[!]invalid session id")
                     else:
-                        command_dispatcher[command](session_id)
+                        command_dispatcher[command](command, session_id)
                 else:
                     command_dispatcher[command]() # using the command key to call the associated function of the key")
             else:
                 print(f"{colors.Fore.YELLOW}command not found")
             print()
         except KeyboardInterrupt:
-            print(f"\n[!]exiting ghost protocol\n")
+            print(f"\n{colors.Fore.RED}[!]exiting ghost protocol\n")
             os._exit(0)
 
         
