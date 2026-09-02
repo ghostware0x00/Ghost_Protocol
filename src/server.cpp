@@ -17,6 +17,12 @@
 
 
 std::mutex session_reg_mutex; // global locker variable created
+struct AgentData{
+    uint32_t agent_session_id;
+    std::string agent_ip_addr;
+    uint16_t agent_port;
+};
+
 
 void common::code_exit(){
     std::cout << "[*]Corrupted data exiting program...." << std::endl;
@@ -109,18 +115,27 @@ bool server::send_all(int client_fd, const void *data, size_t length){
 
 
 void server::get_active_agents(int client_fd){//function to get active agent session_ids and ip address and port
-    uint32_t sessionCount;
+    std::vector<AgentData> snapshot; // store the session_registry values in a temp variable as a snapshot
     {
         std::unique_lock<std::mutex> lock(session_reg_mutex);
-        sessionCount = session_registry.size();
+        for(const auto &session : session_registry){ // using &session so that cpu doesn't  waste memory creating a copy of the unordered map data and cpu cycles and ALSO MAKE SURE WE DONT MODIFY THE session_registry while traversing
+            snapshot.push_back({// pushes data at the end of the vector array (dynamic array)
+                session.first,
+                session.second.ip_address,
+                session.second.port
+            });
+            //sending agent session id
+            // if(!send_all(client_fd, &agent_session_id, sizeof(agent_session_id,0))){
+            //     common::send_failed(client_fd);
+            //     return;
+            //}
+        }
     }
-    sessionCount = htonl(sessionCount);
-    if(!send_all(client_fd, &sessionCount, sizeof(sessionCount))){
+    uint32_t sessionCount = htonl(snapshot.size());// htonl htons are stuff used to convert host bytes to network bytes before sending
+    if(!send(client_fd, &sessionCount, sizeof(sessionCount), 0)){
         common::send_failed(client_fd);
         return;
     }
-    
-
 }
 
 
