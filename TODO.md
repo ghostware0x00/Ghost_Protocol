@@ -3,10 +3,15 @@
 ### WHAT TO DO NOW
 
 
-
+FIRST DO THIS 
 - take c2 server ip as command line argument in agent program and run the agent program on a virtual machine instead of locally for testing
 
-
+#### Steps to validate IPV4 Address
+-Split the string by the dot (.) character.
+- Count the parts to make sure there are exactly four pieces.
+- Check each part to ensure it contains only digits.
+- Convert each part to an integer and check if it is between 0 and 255.
+- Check for leading zeros (like 01 or 007), which are usually invalid in standard IPv4 addresses.
 
 
 

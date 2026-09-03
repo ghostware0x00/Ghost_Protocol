@@ -84,6 +84,13 @@ std::string deserialization_payload(const uint8_t* payload, int payload_size){
 }
 
 
+bool agent::validate_ipaddress(std::string server_ip){
+    /*
+    Check the basic format: Ensure the string is not empty and contains digits and dots.Split the string: Use a string stream or loop to break the address into four segments separated by the dot (.) character.Count the segments: Verify that you have exactly four segments.Check the ranges: Convert each segment to an integer and make sure its value is between 0 and 255 inclusive.Check for extra characters: Ensure there are no extra dots, letters, or invalid symbols.Check for leading zeros: Decide if your rules allow leading zeros like 01 (standard strict validation usually rejects them unless it is a single 0).
+    */
+   
+}
+
 
 void agent::receive_commands(){
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);
