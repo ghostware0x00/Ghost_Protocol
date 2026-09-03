@@ -115,7 +115,7 @@ bool server::send_all(int client_fd, const void *data, size_t length){
 
 
 void server::get_active_agents(int client_fd){//function to get active agent session_ids and ip address and port
-    std::vector<AgentData> snapshot; // store the session_registry values in a temp variable as a snapshot
+    std::vector<AgentData> snapshot; // store the session_registry values in a temp variable as a snapshot. Reason is session_registry is class variable so accessible by multiple threads leading to data corruption during simultaneous modifications by other threads but vector array is a local variable so accessible by this thread only. This solves our mutex issue
     {
         std::unique_lock<std::mutex> lock(session_reg_mutex);
         for(const auto &session : session_registry){ // using &session so that cpu doesn't  waste memory creating a copy of the unordered map data and cpu cycles and ALSO MAKE SURE WE DONT MODIFY THE session_registry while traversing
@@ -124,18 +124,36 @@ void server::get_active_agents(int client_fd){//function to get active agent ses
                 session.second.ip_address,
                 session.second.port
             });
-            //sending agent session id
-            // if(!send_all(client_fd, &agent_session_id, sizeof(agent_session_id,0))){
-            //     common::send_failed(client_fd);
-            //     return;
-            //}
         }
     }
-    uint32_t sessionCount = htonl(snapshot.size());// htonl htons are stuff used to convert host bytes to network bytes before sending
-    if(!send(client_fd, &sessionCount, sizeof(sessionCount), 0)){
+    uint32_t sessionCount = htonl(static_cast<uint32_t>(snapshot.size()));// htonl htons are stuff used to convert host bytes to network bytes before sending. snapshot.size() returns size_t so typcasting is necessary
+    if(!send_all(client_fd, &sessionCount, sizeof(sessionCount))){
         common::send_failed(client_fd);
         return;
     }
+    //take sessioninfo struct
+    for(const auto &agent : snapshot){
+        uint32_t sid = htonl(agent.agent_session_id);
+        uint16_t ap = htons(agent.agent_port);
+        if(!send_all(client_fd, &sid, sizeof(sid))){ // sending agent session_id
+            common::send_failed(client_fd);
+            return;
+        }
+        uint32_t aip_size = htonl(agent.agent_ip_addr.size());// sending agent ip address size 
+        if(!send_all(client_fd, &aip_size, sizeof(aip_size))){
+            common::send_failed(client_fd);
+            return;
+        }
+        if(!send_all(client_fd, agent.agent_ip_addr.data(), agent.agent_ip_addr.size())){ //agent.agent_ip_addr is a string object but we need to send the actual data so .data() gives the starting address of the actual character
+            common::send_failed(client_fd);
+            return;
+        }
+        if(!send_all(client_fd, &ap, sizeof(ap))){
+            common::send_failed(client_fd);
+            return;
+        }
+    }
+    close(client_fd);
 }
 
 
