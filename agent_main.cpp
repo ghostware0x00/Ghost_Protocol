@@ -11,6 +11,6 @@ int main(int argc, char *argv[]){
     if(myagent.validate_ipaddress(argv[1]))
         myagent.receive_commands();
     else
-        std::cout << "[!]invalid server ip address" << std::endl;
+        std::cout << "[!] invalid server ip address" << std::endl;
     return 0;
 }

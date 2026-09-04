@@ -85,10 +85,35 @@ std::string deserialization_payload(const uint8_t* payload, int payload_size){
 
 
 bool agent::validate_ipaddress(std::string server_ip){
-    /*
-    Check the basic format: Ensure the string is not empty and contains digits and dots.Split the string: Use a string stream or loop to break the address into four segments separated by the dot (.) character.Count the segments: Verify that you have exactly four segments.Check the ranges: Convert each segment to an integer and make sure its value is between 0 and 255 inclusive.Check for extra characters: Ensure there are no extra dots, letters, or invalid symbols.Check for leading zeros: Decide if your rules allow leading zeros like 01 (standard strict validation usually rejects them unless it is a single 0).
-    */
-   
+/*    
+- Split the string by the dot (.) character.
+- Count the parts to make sure there are exactly four pieces.
+- Check each part to ensure it contains only digits.
+- Convert each part to an integer and check if it is between 0 and 255.
+- Check for leading zeros (like 01 or 007), which are usually invalid in standard IPv4 addresses.
+*/
+    std::cout << "[*] validating ip address of server..." << std::endl;
+    std::vector<std::string> split_ip;
+    std::stringstream test_ip(server_ip);
+    std::string ip_part;
+    while(std::getline(test_ip, ip_part, '.')){ // spling the ip address based on the dots(.)
+        split_ip.push_back(ip_part);
+    }
+    if(split_ip.size() != 4) // count how many parts (total 4 should be there for IPV4 address)
+        return false;
+    for(const std::string& parts: split_ip){ // iterate through the ip parts and check whether integer or not
+        if(parts.empty())return false; // edge cases where input could be for eg:- 192..28..1.0
+        if(parts.length() > 1 && parts[0] == '0')return false; // check for leading zeroes
+        for(char part : parts){ // parts contains each element from the spli_ip list and part takes one character from the entire string like for example from "192" part takes '1' so isdigit only takes positive elements from 0-9 so char is signed henced making it unsigned is necessary using static_cast 
+            if(!std::isdigit(static_cast<unsigned char>(part)))
+                return false;
+        }
+        int num = std::atoi(parts.c_str()); // convert the "192" part of the string to decimal and store in num
+        if(num < 0 || num > 255)
+            return false;
+    }
+    std::cout << "[+] all digits are present and has 4 parts" << std::endl;
+    return true;
 }
 
 

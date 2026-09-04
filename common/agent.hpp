@@ -1,5 +1,6 @@
 #pragma once
 #include<string>
+#include<sstream>
 class agent{
     public:
         void receive_commands();
