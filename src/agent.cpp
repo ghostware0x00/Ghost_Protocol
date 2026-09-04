@@ -120,7 +120,7 @@ bool agent::validate_ipaddress(std::string server_ip){
         if(num < 0 || num > 255)
             return false;
     }
-    std::cout << "[+] all digits are present and has 4 parts" << std::endl;
+    std::cout << "[+] server ip address validated" << std::endl;
     return true;
 }
 
