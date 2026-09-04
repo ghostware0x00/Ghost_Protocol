@@ -416,6 +416,8 @@ void server::agent_listener(){
             continue; // skips the rest of the below logic and retries accept()
         }
         std::cout << "[+] an agent connected" << std::endl;
+        struct sockaddr_in agent_address{};
+        socklen_t agent_address_len = sizeof(agent_address);
         if(getpeername(client_fd, reinterpret_cast<struct sockaddr*>(&agent_address), &agent_address_len) < 0){// getpeername gets the ip address and port in network byte order (in raw bytes) thats why we use inet_htop to convert those raw bytes to human readable string
             common::getpeername_failed(client_fd);
             continue;
