@@ -2,6 +2,7 @@
 #include <cstring>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <print>
@@ -45,6 +46,13 @@ void common::connection_failed(int connection_status){
         std::perror("[-]receive failed");
         std::cout << std::endl;
     }
+}
+
+
+void common::inet_ntop_failed(int client_fd){
+    std::perror("[!]failed to convert agent ip address to human readable string");
+    std::cout << std::endl;
+    close(client_fd);
 }
 
 
@@ -117,12 +125,15 @@ bool agent::validate_ipaddress(std::string server_ip){
 }
 
 
-void agent::receive_commands(){
+void agent::receive_commands(std::string SERVER_IP){
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);
     common::socket_check(client_fd);
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET; // IPv4 address
-    server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // localhost
+    if(inet_pton(AF_INET, SERVER_IP.c_str(), &server_address.sin_addr) <= 0){ // convert IP_address string to raw binary data in network byte order
+        common::inet_ntop_failed(client_fd);
+        return;
+    }
     server_address.sin_port = htons(AGENT_PORT); // port 1234 assigned
     //char server_response[100];
     // payload header storage

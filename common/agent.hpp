@@ -3,7 +3,7 @@
 #include<sstream>
 class agent{
     public:
-        void receive_commands();
+        void receive_commands(std::string);
         bool validate_ipaddress(std::string);
         //void receive_chunks(int, );
 };
