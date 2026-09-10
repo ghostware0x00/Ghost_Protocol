@@ -6,6 +6,11 @@ import cli
 import connection
 import colors
 
+
+active_sessions = {} # dictionary to show the agent id and its source port
+current_session = None # kept default to None 
+
+
 def help_usage():
     help_commands = [
         "help",
@@ -23,13 +28,26 @@ def help_usage():
 
 
 def sessions_usage():
+    global active_sessions
     print(f"\n{colors.Style.BRIGHT}{colors.Fore.CYAN}[*]Listing sessions{colors.Style.RESET_ALL}")
-    connection.connect("sessions")
+    session_info = connection.connect("sessions")
+    if session_info is None:
+        active_sessions = {}
+        return
+    active_sessions = {} # updating active_sessions each time so that disconnected agent ids dont remain and shows active agents in real time
+    for session in session_info:
+        session_id = session["agent_sid"]
+        active_sessions[session_id] = session
 
 
 def choose_session(command, session_id): # to do (IMPLEMENT USE or choose a session)
-    print(f"[+]session id : {session_id} choosen")
-    print(f"[+]command : {command}")
+    global current_session
+    if session_id not in active_sessions:
+        print(f"{colors.Fore.RED}[!] Invalid session id : {session_id}")
+        return
+    current_session = session_id
+    print(f"{colors.Style.BRIGHT}{colors.Fore.GREEN}[+]session id : {current_session} selected {colors.Style.RESET_ALL}")
+    
 
 
 def clear_usage():

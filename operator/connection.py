@@ -74,7 +74,7 @@ def connect(command):
                 if command == "sessions":
                     session_info, sessionCount = receive_sessions(operator_socket) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
                     console.display_sessionInfo(session_info, sessionCount)
-                    break
+                    return session_info
         except OSError as e:
             print(f"{colors.Fore.RED}[!] couldn't connect to c2 server\n")
             operator_socket.close()
