@@ -22,7 +22,7 @@ def help_usage():
         "exit"
     ]
     print(f"_"*20)
-    print(f"{colors.Fore.GREEN}Available commands : ")
+    print(f"{colors.Style.BRIGHT}{colors.Fore.CYAN}Available commands{colors.Style.RESET_ALL}")
     print(f"_"*20)
     print(f"\n".join(help_commands))
 
@@ -122,6 +122,9 @@ def dispatch():
             if command == "":
                 continue
             if command.startswith("use"): # perform use command parsing
+                if current_session is not None:
+                    print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!] already inside session {current_session}{colors.Style.RESET_ALL}")
+                    continue
                 command, session_id = parse_session_id(command)
             if command in command_dispatcher:
                 if command == "use":
