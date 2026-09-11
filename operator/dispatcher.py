@@ -55,7 +55,12 @@ def clear_usage():
 
 
 def back_usage():
-    pass
+    global current_session
+    if current_session is None:
+        print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!] no session is selected{colors.Style.RESET_ALL}")
+    else:
+        current_session = None
+        print(f"{colors.Style.BRIGHT}{colors.Fore.CYAN}[*]exiting session ...{colors.Style.RESET_ALL}")
 
 
 
@@ -94,7 +99,7 @@ def dispatch():
     while True:
         try:
             session_id = None
-            command = cli.command_input_prompt()
+            command = cli.command_input_prompt(current_session)
             if command == "":
                 continue
             if command.startswith("use"): # perform use command parsing
