@@ -27,6 +27,24 @@ def help_usage():
     print(f"\n".join(help_commands))
 
 
+def target_info():
+    global current_session
+    global active_sessions
+    if current_session is None:
+        print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!] select a session first")
+    else:
+        print("_"*35)
+        print(
+            f"{'TARGET_IP':<15}"
+            f"{'SOURCE PORT':<15}"
+        )
+        print("_"*35)
+        print(
+            f"{active_sessions[current_session]["agent_ip"]:<15}"
+            f"{active_sessions[current_session]["agent_port"]:<15}"
+        )
+
+
 def sessions_usage():
     global active_sessions
     print(f"\n{colors.Style.BRIGHT}{colors.Fore.CYAN}[*]Listing sessions{colors.Style.RESET_ALL}")
@@ -90,6 +108,7 @@ command_dispatcher = {
     "sessions": sessions_usage,
     "use": choose_session,
     "back": back_usage,
+    "info": target_info,
     "execute": execute_cmd_usage,
     "clear": clear_usage,
     "exit": exit_usage
