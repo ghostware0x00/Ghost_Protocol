@@ -21,9 +21,9 @@ def help_usage():
         #"execute <command>",
         "exit"
     ]
-    print(f"-"*20)
+    print(f"_"*20)
     print(f"{colors.Fore.GREEN}Available commands : ")
-    print(f"-"*20)
+    print(f"_"*20)
     print(f"\n".join(help_commands))
 
 
