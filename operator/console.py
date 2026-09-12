@@ -18,5 +18,5 @@ def display_sessionInfo(session_info, sessionCount):
             )
         print("_"*35)
     else:
-        print(f"{colors.Style.RED}[!] no active sessions present")
+        print(f"{colors.Style.BRIGHT}{colors.Fore.RED}[!] no active sessions present{colors.Style.RESET_ALL}")
     print()
