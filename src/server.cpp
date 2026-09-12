@@ -180,7 +180,7 @@ std::vector<uint8_t> serialization(const packet &p1){ // CURRENTLY NOT USED !!! 
     // converting the packet_bytes (unsigned integers) to network bytes or big endian
     uint32_t message_type = htonl(p1.message_type);
     uint32_t session_id = htonl(p1.session_id);
-    uint32_t payload_length = htonl(p1.payload_length);
+    uint32_t payload_length = htonl(p1.payload.size());
 
     // copying this data to the vector array using memset
     // memcpy arguments => memcpy(arg1 = addr. of where to copy data, addr. of what to copy, sizeof(the data to copy))
@@ -242,18 +242,18 @@ int server::get_session_id(){
 
 
 
-int server::choose_session(){
-    uint32_t session_id;
-    std::cout << "Choose session_id : ";
-    std::cin >> session_id;
-    if(session_registry.contains(session_id)){
-        return session_id;
-    }    
-    else{
-        std::cout << "[*] invalid session input" << std::endl;
-        return -1;
-    }
-}
+// int server::choose_session(){
+//     uint32_t session_id;
+//     std::cout << "Choose session_id : ";
+//     std::cin >> session_id;
+//     if(session_registry.contains(session_id)){
+//         return session_id;
+//     }    
+//     else{
+//         std::cout << "[*] invalid session input" << std::endl;
+//         return -1;
+//     }
+// }
 
 
 // void server::send_commands_agent(int soc_fd, int session_id){ // send message to client

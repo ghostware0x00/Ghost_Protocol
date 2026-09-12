@@ -56,6 +56,16 @@ void common::inet_ntop_failed(int client_fd){
 }
 
 
+bool agent::recv_all(int client_fd, void *buffer, size_t length){
+    size_t total_bytes_received = 0;
+    while(total_bytes_received < length){
+        ssize_t bytes_received = recv(client_fd, static_cast<char *>(buffer) + total_bytes_received, length - total_bytes_received, 0);
+        if(bytes_received <= 0)
+            return false;
+        total_bytes_received = total_bytes_received + bytes_received;
+    }
+    return true;
+}
 // void display_command_output(uint32_t command_length, uint32_t session_id, uint8_t heartbeat, std::string command){
 //     packet p1;
 //     p1.command_length = command_length;
@@ -69,7 +79,7 @@ void common::inet_ntop_failed(int client_fd){
 // }    
 
 
-packet deserialization_payload_header(const uint8_t payload_header[]){
+packet deserialization_payload_header(const uint8_t payload_header[]){ // convert the raw bytes of payload header and store the actual data into a structure variable
 /*
 +-------------+-------------+-------------+----------------+
 | Message Type|  Session ID | Payload Len |    Payload     |
@@ -111,7 +121,7 @@ packet deserialization_payload_header(const uint8_t payload_header[]){
 
 
 
-std::string deserialization_payload(const uint8_t* payload, size_t payload_size){
+std::string deserialization_payload(const uint8_t* payload, size_t payload_size){ // convert the raw bytes of payload command to human readable command and return the command
     return std::string(reinterpret_cast<const char *>(payload), payload_size);
 }
 
@@ -150,12 +160,10 @@ bool agent::validate_ipaddress(std::string server_ip){
 
 
 void agent::receive_commands(std::string SERVER_IP){
-    int client_fd = socket(AF_INET, SOCK_STREAM, 0);
-    common::socket_check(client_fd);
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET; // IPv4 address
     if(inet_pton(AF_INET, SERVER_IP.c_str(), &server_address.sin_addr) <= 0){ // convert IP_address string to raw binary data in network byte order
-        common::inet_ntop_failed(client_fd);
+        std::cout << "[!]invalid server IP" << std::endl;
         return;
     }
     server_address.sin_port = htons(AGENT_PORT); // port 1234 assigned
@@ -163,41 +171,44 @@ void agent::receive_commands(std::string SERVER_IP){
     // payload header storage
     // we using &byte_array 
     // although might seem byte_array would work cuz array is a pointer. but byte_array is vector object first so we need point to that vector object's address
-    while(1){
+    constexpr size_t HEADER_SIZE = 12;
+    while(true){
+        int client_fd = socket(AF_INET, SOCK_STREAM, 0);
+        common::socket_check(client_fd);
         if(connect(client_fd, (struct sockaddr*)&server_address, sizeof(server_address)) == 0){
             std::cout << "[+]connected to server" << std::endl;
-            while(1){
-                uint8_t payload_header[9];
-                int payload_header_length = 9; // size of struct packet (command length, session_id, heartbeat)
-                int connection_status = 0, recv_counter = 0;
-                //int phi = 0;
-                // receiving the payload header
-                do{
-                    connection_status = recv(client_fd, payload_header+recv_counter, payload_header_length-recv_counter, 0);  // read bytes in each recv and then subtract when those bytes are read 
-                    if(connection_status > 0){ // > 0 means received something else nothing was received
-                        recv_counter += connection_status;
-                    }else if(connection_status <= 0){common::connection_failed(connection_status);}
-                }while(recv_counter != payload_header_length);
-                // now that payload header is stored
-                // i need to need packet p1.command_length to understand how many bytes i need to read of command or payload
-                packet p1 = deserialization_payload_header(payload_header);
-                uint32_t payload_counter = 0;
-                // now reading payload from the tcp buffer
-                std::vector<uint8_t> payload(p1.command_length);
-                do{
-                    connection_status = recv(client_fd, payload.data()+payload_counter, p1.command_length-payload_counter, 0); // read bytes in each recv and then subtract when those bytes are read 
-                    if(connection_status > 0){
-                        payload_counter += connection_status;
-                    }else if(connection_status <= 0){common::connection_failed(connection_status);}
-                }while(payload_counter != p1.command_length);
-                std::string payload_cmd = deserialization_payload(payload.data(), payload.size()); // a vector_array's.size() sends const <datatype>* pointer or address
-                p1.command = payload_cmd;
-                //display_command_output(p1.command_length, p1.session_id, p1.heartbeat, p1.command);
+            while(true){
+                uint8_t payload_header[HEADER_SIZE];
+                if(!recv_all(client_fd, payload_header, HEADER_SIZE)){
+                    std::cout << "[!]failed to receive packet header" << std::endl;
+                    close(client_fd);
+                    return;
+                }
+                packet received_packet = deserialization_payload_header(payload_header);
+                
+                // FOR DEBUGGING PURPOSE ONLY
+                std::cout << "[+]MESSAGE_TYPE : " << received_packet.message_type << std::endl;
+                std::cout << "[+]SESSION_ID : " << received_packet.session_id << std::endl;
+                std::cout << "[+]PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
+
+                // getting the payload using the payload length
+                if(received_packet.payload_length > 0){
+                    std::vector<uint8_t> payload(received_packet.payload_length);
+                    if(!recv_all(client_fd, payload.data(), payload.size())){
+                        std::cout << "[!]failed to receive payload" << std::endl; // if failed to receive bytes, inner loop is exited and connection is retried from outer loop by creating a new socket
+                        close(client_fd);
+                        break; // when breaks new socket is created and connection is retried
+                    }
+                    received_packet.payload = deserialization_payload(payload.data(), payload.size()); //a vector_array's.size() sends const <datatype>* pointer or address
+                    std::cout << "[+]PAYLOAD : " << received_packet.payload << std::endl;
+                }
+                // THE ABOVE SECTION DEBUGGING PURPOSE ONLY
             }
+            std::cout << "[*]attempting to reconnect..." << std::endl; // if payload receiving fails then connection is retried
         }
         else{
             close(client_fd);
-            std::cout << "[-]agent couldn't connect to server" << std::endl;
+            std::cout << "[!]agent couldn't connect to server" << std::endl;
             break;
         }
     }

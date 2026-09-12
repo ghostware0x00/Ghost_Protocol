@@ -24,7 +24,8 @@ def packet_formation(message_type, session_id, payload): # forms command packet 
     packet = (#!I = 4 byte unsigned integer in big endian byte order or network byte order
         struct.pack("!I", message_type)+
         struct.pack("!I", session_id)+
-        struct.pack("!I", len(payload_bytes))
+        struct.pack("!I", len(payload_bytes))+
+        payload_bytes
     )
     return packet
 
