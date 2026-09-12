@@ -56,39 +56,63 @@ void common::inet_ntop_failed(int client_fd){
 }
 
 
-void display_command_output(uint32_t command_length, uint32_t session_id, uint8_t heartbeat, std::string command){
-    packet p1;
-    p1.command_length = command_length;
-    p1.session_id = session_id;
-    p1.heartbeat = heartbeat + 1; //indicating agent is online
-    p1.command = command;
-    //std::cout << "$$$$$$$ Payload Details $$$$$$$" << std::endl;
-    std::println("{:<20}{:<20}{:<20}{:<20}", "Session_ID", "Hearbeat", "Command_Length", "Command");
-    std::println("{:<20}{:<20}{:<20}{:<20}", p1.session_id, p1.heartbeat, p1.command_length, p1.command);
-    std::println();
-}
+// void display_command_output(uint32_t command_length, uint32_t session_id, uint8_t heartbeat, std::string command){
+//     packet p1;
+//     p1.command_length = command_length;
+//     p1.session_id = session_id;
+//     p1.heartbeat = heartbeat + 1; //indicating agent is online
+//     p1.command = command;
+//     //std::cout << "$$$$$$$ Payload Details $$$$$$$" << std::endl;
+//     std::println("{:<20}{:<20}{:<20}{:<20}", "Session_ID", "Hearbeat", "Command_Length", "Command");
+//     std::println("{:<20}{:<20}{:<20}{:<20}", p1.session_id, p1.heartbeat, p1.command_length, p1.command);
+//     std::println();
+// }    
 
 
-packet deserialization_payload_header(uint8_t payload_header[]){
+packet deserialization_payload_header(const uint8_t payload_header[]){
 /*
-+--------------+----------------+----------------+---------------+
-| Command Length | Session ID     | Heartbeat | Payload          |
-| 4 bytes        | 4 bytes        | 1 byte    | Variable bytes   |
-+----------------+----------------+-----------+------------------+
++-------------+-------------+-------------+----------------+
+| Message Type|  Session ID | Payload Len |    Payload     |
+|   4 bytes   |   4 bytes   |   4 bytes   | variable size  |
++-------------+-------------+-------------+----------------+
 */
-   packet p1;
-   std::memcpy(&p1.command_length, payload_header+0, 4);
-   p1.command_length = ntohl(p1.command_length); // fixing byte ordering using nthol cuz data received in big endian and nthol converts data to default endian of the system
-   std::memcpy(&p1.session_id, payload_header+4, 4);
-   p1.session_id = ntohl(p1.session_id);
-   std::memcpy(&p1.heartbeat, payload_header+8, 1);
-   return p1;
+    packet p1{}; // initializing the struct values to 0
+    uint32_t message_type;
+    uint32_t session_id;
+    uint32_t payload_length;
+
+    // reading message_type
+    std::memcpy(
+        &message_type,
+        payload_header,
+        sizeof(message_type)
+    );
+    // increment pointer to read correct data based on the value we need to store
+    payload_header += sizeof(message_type);
+    // reading session_id
+    std::memcpy(
+        &session_id,
+        payload_header,
+        sizeof(session_id)
+    );
+    payload_header += sizeof(session_id);
+    // reading payload_length
+    std::memcpy(
+        &payload_length,
+        payload_header,
+        sizeof(payload_length)
+    );
+    // converting the data from network byte order to little endian byte order
+    p1.message_type = ntohl(message_type);
+    p1.session_id = ntohl(session_id);
+    p1.payload_length = ntohl(payload_length);
+    return p1;
 }
 
 
-std::string deserialization_payload(const uint8_t* payload, int payload_size){
-    packet p1;
-    return std::string(reinterpret_cast<const char*>(payload), payload_size);
+
+std::string deserialization_payload(const uint8_t* payload, size_t payload_size){
+    return std::string(reinterpret_cast<const char *>(payload), payload_size);
 }
 
 
@@ -168,7 +192,7 @@ void agent::receive_commands(std::string SERVER_IP){
                 }while(payload_counter != p1.command_length);
                 std::string payload_cmd = deserialization_payload(payload.data(), payload.size()); // a vector_array's.size() sends const <datatype>* pointer or address
                 p1.command = payload_cmd;
-                display_command_output(p1.command_length, p1.session_id, p1.heartbeat, p1.command);
+                //display_command_output(p1.command_length, p1.session_id, p1.heartbeat, p1.command);
             }
         }
         else{

@@ -3,6 +3,17 @@
 #include <cstdint>
 #include <unordered_map> // used for session handling (store key value pair of session_ids(key) and client_fd(value))
 
+
+// message type codes
+// constexpr can improve efficiency and allow values to be used during compile time
+constexpr int MESSAGE_COMMAND = 1;
+constexpr int MESSAGE_SHELL_START = 2;
+constexpr int MESSAGE_SHELL_DATA = 3;
+constexpr int MESSAGE_SHELL_EXIT = 4;
+constexpr int MESSAGE_OUTPUT = 5;
+constexpr int MESSAGE_ERROR = 6;
+
+
 class server{
     private:
         // create a session_registry structure
@@ -22,7 +33,7 @@ class server{
         void send_commands_agent(int soc_fd, int session_id);
         void operator_data_recvHandling(int received_bytes, int client_fd);
         bool send_all(int client_fd, const void *data, size_t length);
-        uint32_t deserialize_commandLenBytes(uint8_t command_length_bytes[]);
+        bool recv_all(int client_fd, void *buffer, size_t length);
         void command_dispatcher(std::string command, int client_fd); // function will be used to call the associated function based on the command supplied by the operator
         int get_session_id();
         void detect_active_agents(int client_fd, int session_id); // passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time

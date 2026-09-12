@@ -164,28 +164,49 @@ void server::command_dispatcher(std::string command, int client_fd){
 }
 
 
-std::vector<uint8_t> serialization(packet p1){
-    size_t total_size = sizeof(p1.command_length) + sizeof(p1.session_id) + sizeof(p1.heartbeat) + p1.command.length();
-    // doing sizeof(p1) causes padding of bytes so we will get wrong data 
-    // since we are sending this through network we need to calculate their correct size 
-    std::vector<uint8_t> byte_array(total_size); // creating a dynamic array of total_size bytes and it will have 1 byte continguous blocks of memory storage. arrays in vectors can shrink and increase since they are dynamic
-    uint8_t *byte_array_ptr = byte_array.data(); // pointer of byte_array so that we can move it accordingly and writes bytes in the byte_array. also byte_array.data() produces the starting address of byte_array
-    // since these 2 variables are 4 bytes so using htonl we set them to big endian order, the correct byte order for network communication
-    if(byte_array_ptr == NULL){
+std::vector<uint8_t> serialization(const packet &p1){ // CURRENTLY NOT USED !!! BUT WILL BE USED WHEN COMMAND SENT WILL BE IMPLEMENTED
+    size_t total_size = 
+        sizeof(uint32_t) + // message_type
+        sizeof(uint32_t) + // session_id
+        sizeof(uint32_t) + // payload_length
+        p1.payload.size(); // payload
+    
+    std::vector<uint8_t> byte_array(total_size); // memory allocated
+    uint8_t *byte_array_ptr = byte_array.data(); // in vector arrays .data() gives the address of the first element 
+    if(byte_array_ptr == nullptr){ // if memory not allocated to vector array the if condition will be true
         common::code_exit();
-    }
-    uint32_t cl = htonl(p1.command_length);
-    uint32_t sid = htonl(p1.session_id);
-    //copying bytes in memory (byte_array)
-    byte_array_ptr = byte_array.data(); // setting the starting address for 
-    std::memcpy(byte_array_ptr, &cl, sizeof(cl)); // copying command length bytes
-    // incrementing pointer with respect to the bytes of cl(command_length) and sid(session_id)
-    byte_array_ptr += sizeof(cl); 
-    std::memcpy(byte_array_ptr, &sid, sizeof(sid));
-    byte_array_ptr += sizeof(sid);
-    std::memcpy(byte_array_ptr, &p1.heartbeat, sizeof(p1.heartbeat));
-    byte_array_ptr += sizeof(p1.heartbeat);
-    std::memcpy(byte_array_ptr, p1.command.data(), p1.command.length());
+    } 
+
+    // converting the packet_bytes (unsigned integers) to network bytes or big endian
+    uint32_t message_type = htonl(p1.message_type);
+    uint32_t session_id = htonl(p1.session_id);
+    uint32_t payload_length = htonl(p1.payload_length);
+
+    // copying this data to the vector array using memset
+    // memcpy arguments => memcpy(arg1 = addr. of where to copy data, addr. of what to copy, sizeof(the data to copy))
+    std::memcpy( // message_type copy
+        byte_array_ptr, 
+        &message_type,
+        sizeof(message_type)
+    );
+    byte_array_ptr += sizeof(message_type); // increment the vector array pointer to copy the data in correct positions
+    std::memcpy( // session_id copy
+        byte_array_ptr,
+        &session_id,
+        sizeof(session_id)
+    );
+    byte_array_ptr += sizeof(session_id);
+    std::memcpy(
+        byte_array_ptr,
+        &payload_length,
+        sizeof(payload_length)
+    );
+    byte_array_ptr += sizeof(payload_length);
+    std::memcpy(
+        byte_array_ptr,
+        p1.payload.data(),
+        p1.payload.size()
+    );
     return byte_array;
 }
 
@@ -199,7 +220,7 @@ void server::display_active_agents(){
         std::cout << "[!] no active agents present"<< std::endl;
         return;
     }
-    std::println("{:<15}{:<20}{:<15}{:<10}", "Session_ID", "IP Address", "Client_FD", "Port");
+    std::println("{:<15}{:<20}{:<15}{:<10}", "SESSION_ID", "IP_ADDRESS", "CLIENT_FD", "PORT");
     std::println("{}", std::string(65, '_'));
     for(auto session_info : session_registry){
             std::println("{:<15}{:<20}{:<15}{:<10}",
@@ -220,16 +241,6 @@ int server::get_session_id(){
 }
 
 
-packet packet_wrapping(std::string command, int session_id){
-    //srand(time(0)); // setting the current time as seed value so that rand() number is new everytime
-    packet p1;
-    p1.command_length = command.length();
-    p1.session_id = session_id;
-    p1.heartbeat = 0;
-    p1.command = command;
-    return p1;
-}
-
 
 int server::choose_session(){
     uint32_t session_id;
@@ -245,18 +256,18 @@ int server::choose_session(){
 }
 
 
-void server::send_commands_agent(int soc_fd, int session_id){ // send message to client
-    std::string command;
-    packet p1;
-    // std::cout << "Enter command : " << std::endl;
-    // std::getline(std::cin >> std::ws, command);
-    p1 = packet_wrapping(command, session_id);
-    std::vector<uint8_t> byte_array = serialization(p1);
-    // instead of soc_fd we need to send session_registry[session_id] to send commands to that particular data only
-    if(send(soc_fd, byte_array.data(), byte_array.size(), 0) < 0){
-        common::code_exit();
-    }
-}
+// void server::send_commands_agent(int soc_fd, int session_id){ // send message to client
+//     std::string command;
+//     packet p1;
+//     // std::cout << "Enter command : " << std::endl;
+//     // std::getline(std::cin >> std::ws, command);
+//     p1 = packet_wrapping(command, session_id);
+//     std::vector<uint8_t> byte_array = serialization(p1);
+//     // instead of soc_fd we need to send session_registry[session_id] to send commands to that particular data only
+//     if(send(soc_fd, byte_array.data(), byte_array.size(), 0) < 0){
+//         common::code_exit();
+//     }
+// }
 
 
 void server::detect_active_agents(int client_fd, int session_id){
@@ -297,25 +308,61 @@ void server::detect_active_agents(int client_fd, int session_id){
 }
 
 
-// void server::receive_commands_operator(int client_fd){ // function to receive commands 
-//     /* TO DO */
-//     uint32_t command_length = 32;
-//     int receive_counter = 0;
-//     int bytes_received = 0;
-//     char bytearray_command[32] = {}; // array where command data received in bytes
-//     do{
-//         bytes_received = recv(client_fd, bytearray_command + receive_counter, command_length-receive_counter, 0);
-//         if(bytes_received > 0){
-//             receive_counter += bytes_received;
-//         }
-//     }while(bytes_received != command_length);
-// }
+std::string deserialization_payload(const uint8_t* payload, size_t payload_size){
+    return std::string(reinterpret_cast<const char *>(payload), payload_size);
+}
 
-uint32_t server::deserialize_commandLenBytes(uint8_t command_length_bytes[]){ // convert the raw bytes sent from the operator to string format
-    uint32_t command_length = 0;
-    std::memcpy(&command_length, command_length_bytes, 4); // copy 4 bytes data to command_length variable. data stored in uint32_t format and not in raw bytes
-    command_length = ntohl(command_length);
-    return command_length;
+
+packet deserialization_payload_header(const uint8_t payload_header[]){
+/*
++-------------+-------------+-------------+----------------+
+| Message Type|  Session ID | Payload Len |    Payload     |
+|   4 bytes   |   4 bytes   |   4 bytes   | variable size  |
++-------------+-------------+-------------+----------------+
+*/
+    packet p1{}; // initializing the struct values to 0
+    uint32_t message_type;
+    uint32_t session_id;
+    uint32_t payload_length;
+
+    // reading message_type
+    std::memcpy(
+        &message_type,
+        payload_header,
+        sizeof(message_type)
+    );
+    // increment pointer to read correct data based on the value we need to store
+    payload_header += sizeof(message_type);
+    // reading session_id
+    std::memcpy(
+        &session_id,
+        payload_header,
+        sizeof(session_id)
+    );
+    payload_header += sizeof(session_id);
+    // reading payload_length
+    std::memcpy(
+        &payload_length,
+        payload_header,
+        sizeof(payload_length)
+    );
+    // converting the data from network byte order to little endian byte order
+    p1.message_type = ntohl(message_type);
+    p1.session_id = ntohl(session_id);
+    p1.payload_length = ntohl(payload_length);
+    return p1;
+}
+
+
+bool server::recv_all(int client_fd, void *buffer, size_t length){
+    size_t total_bytes_received = 0;
+    while(total_bytes_received < length){
+        ssize_t bytes_received = recv(client_fd, static_cast<char *>(buffer) + total_bytes_received, length - total_bytes_received, 0);
+        if(bytes_received <= 0)
+            return false;
+        total_bytes_received = total_bytes_received + bytes_received;
+    }
+    return true;
 }
 
 
@@ -345,33 +392,49 @@ void server::operator_listener(){
         }
         std::cout << "[+] operator connected" << std::endl;
         // command length will be of 4 bytes so we will accept for bytes first
-        uint8_t command_length_bytes[4]; // unsigned 4 byte byte_array to receive the complete 4 byte value of the command length
-        size_t command_len= 4; 
-        int bytes_received = 0;
-        size_t recv_byte_counter = 0;
-        do{
-            bytes_received = recv(client_fd, command_length_bytes+recv_byte_counter, command_len-recv_byte_counter, 0);
-            if(bytes_received > 0){
-                recv_byte_counter += bytes_received;
-            }else{
-                operator_data_recvHandling(bytes_received, client_fd);
-                break;
+
+        // receive the packet strcuture
+        //                  4 bytes          4 bytes          4 bytes
+        //       +-------------+----------------+----------------+
+        //       | Message Type|   Session ID    | Payload Length |
+        //       +-------------+----------------+----------------+
+        //       |                 Payload (N bytes)              |
+        //       +------------------------------------------------+
+        
+        // receiving 12 byte header
+        constexpr size_t HEADER_SIZE = 12;
+        uint8_t payload_header[HEADER_SIZE];
+        if(!recv_all(client_fd, payload_header,HEADER_SIZE)){
+            std::cout << "[!]failed to receive payload header" << std::endl;
+            close(client_fd);
+            continue;
+        }
+        packet received_packet = deserialization_payload_header(payload_header); // converting raw payload_header bytes to human readable data
+        std::cout << "[+]MESSAGE_TYPE : " << received_packet.message_type << std::endl;
+        std::cout << "[+]SESSION_ID : " << received_packet.session_id << std::endl;
+        std::cout << "[+]PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
+        //receiving payload
+        if(received_packet.payload_length > 0){
+            std::vector<uint8_t> payload(received_packet.payload_length);
+            if(!recv_all(client_fd, payload.data(), received_packet.payload_length)){
+                std::cout << "[!]failed to receive packet payload" << std::endl;
+                close(client_fd);
+                continue;
             }
-        }while(recv_byte_counter != command_len);
-        // in uint8_t the raw bytes of the command length is present
-        uint32_t command_length = deserialize_commandLenBytes(command_length_bytes);
-        std::string command(command_length, '\0'); // assigning null character to string so that upon receiving the entire command there remains a null character to end the command string
-        bytes_received = 0, recv_byte_counter = 0;
-        do{
-            bytes_received = recv(client_fd, command.data()+recv_byte_counter, command_length-recv_byte_counter, 0);
-            if(bytes_received > 0){
-                recv_byte_counter += bytes_received;
-            }else{
-                operator_data_recvHandling(bytes_received, client_fd);
-                break;
+            //deserializing payload
+            // payload is still in bytes so we need to deserilize the payload to get human readable data
+            received_packet.payload = deserialization_payload(payload.data(), payload.size());
+
+            // Starting Dispatch
+            std::cout << "[+]PAYLOAD : " << received_packet.payload << std::endl;
+            if(received_packet.message_type == MESSAGE_COMMAND){
+                command_dispatcher(received_packet.payload, client_fd);
             }
-        }while(recv_byte_counter != command_length);
-        command_dispatcher(command, client_fd);
+            else{
+                std::cout << "[!]unsupported MESSAGE_TYPE : " << received_packet.message_type << std::endl;
+                close(client_fd);
+            }
+        }
     }
 }
 

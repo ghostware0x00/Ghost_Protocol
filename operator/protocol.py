@@ -5,14 +5,33 @@ import struct
 # or in what order based on which we can read them in recv()
 # and run the respective function or operation
 
-def command_packet_formation(command): # forms command packet strcuture so that we can receive it in c2 server and understand what part of the command is what
+
+MESSAGE_COMMAND = 1
+MESSAGE_SHELL_START = 2
+MESSAGE_SHELL_DATA = 3
+MESSAGE_SHELL_EXIT = 4
+MESSAGE_OUTPUT = 5
+MESSAGE_ERROR = 6
+
+
+def packet_formation(message_type, session_id, payload): # forms command packet strcuture so that we can receive it in c2 server and understand what part of the command is what
 #     +----------------------+----------------------+
 #     | Command Length       | Command              |
 #     | 4 bytes              | N bytes              |
 #     +----------------------+----------------------+
 #         uint32              variable
-    command_bytes = command.encode()
-    command_length = len(command_bytes)
-    command_len_bytes = struct.pack(">I", command_length) # > = big endian. this is to ensure that data sent is in big endian format just like the sockets expect it so that there is uniformity in byte ordering during sending and receiving without any byte ordering issues in the server side
-    packet_bytes = command_len_bytes + command_bytes
-    return packet_bytes
+    payload_bytes = payload.encode()
+    packet = (#!I = 4 byte unsigned integer in big endian byte order or network byte order
+        struct.pack("!I", message_type)+
+        struct.pack("!I", session_id)+
+        struct.pack("!I", len(payload_bytes))
+    )
+    return packet
+
+
+# the below structure should be the packet strcuture
+# so we gotta change the above structure
+# +-------------+-------------+-------------+----------------+
+# | Message Type|  Session ID | Payload Len |    Payload     |
+# |   4 bytes   |   4 bytes   |   4 bytes   | variable size  |
+# +-------------+-------------+-------------+----------------+

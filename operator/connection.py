@@ -4,7 +4,7 @@ import protocol
 import console
 import colors
 
-command_dispather = ["help", "exit"]
+
 TARGET_PORT = 9000
 TARGET_IP = "127.0.0.1"
 HOST = "0.0.0.0"
@@ -68,7 +68,7 @@ def connect(command):
         try:
             operator_socket.connect((TARGET_IP, TARGET_PORT))
             #print(f"[+] operator connected to server successfully")
-            packet_bytes = protocol.command_packet_formation(command)
+            packet_bytes = protocol.packet_formation(protocol.MESSAGE_COMMAND, 0, command) # 0 because we are just typing "sessions" command and not choosing any active session so...
             operator_socket.sendall(packet_bytes)
             while True:
                 if command == "sessions":
