@@ -175,20 +175,46 @@ int server::agentLookup(uint32_t session_id){
 
 
 
+void server::handle_shell_session(int client_fd, int agent_fd, int session_id){
+    
+}
+
+
+
 void server::command_dispatcher(const packet &received_packet, int client_fd){
-    if(received_packet.payload == "sessions"){ // get active agents in the network and send the data back to operator console
-        get_active_agents(client_fd);
+    // Normal operator commands
+    if(received_packet.message_type == MESSAGE_COMMAND){ // for basic commands
+        if(received_packet.payload == "sessions"){ // get active agents in the network and send the data back to operator console
+            get_active_agents(client_fd);
+        }
+        else{
+            std::cout << "[!]unknown command received : "<< received_packet.payload << std::endl;
+        }
     }
-    else if(received_packet.payload == "shell"){ // based on the sid choose the corresponding client_fd from the session registry to send the command to the agent
+    // Start persistent shell session
+    else if(received_packet.message_type == MESSAGE_SHELL_START){
+        // based on the sid choose the corresponding client_fd from the session registry to send the command to the agent
         // find session_registry[received_packet.session_id]
         // get that agent's client_fd
         // send shell-start packet to that agent
         int agent_fd = agentLookup(received_packet.session_id);
         if(agent_fd < 0){
-            std::cout << "[!]agent lookup failed. agent doesn't exist" << std::endl;
+            std::cout << "[!]agent lookup failed" << std::endl;
+            packet response{}; // initializing response structure to 0
+            response.message_type = MESSAGE_ERROR;
+            response.session_id = session_id;
+            response.payload = "invalid or inactive session";
+            response.payload_length = response.payload.size();
+            std::vector<uint8_t> serialized = serialization(response);
+            send_all(client_fd, serialized.data(), serialized.size());
+            close(client_fd);
             return;
         }
-        
+        std::cout << "[+] agent lookup succeeded" << std::endl;
+        std::cout << "[+] agent fd : " << agent_fd << std::endl;
+    }
+    else{
+        std::cout << "[!]unsupported MESSAGE_TYPE received : " << received_packet.message_type << std::endl;
     }
 }
 

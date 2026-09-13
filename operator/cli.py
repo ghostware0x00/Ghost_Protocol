@@ -12,3 +12,14 @@ def command_input_prompt(current_session):
         f"{colors.Style.RESET_ALL}"
     )
     return command
+
+
+def shellPrompt():
+    prompt = "agent$> "
+    command = input(
+        f"{colors.Style.BRIGHT}"
+        f"{colors.Fore.MAGENTA}"
+        f"{prompt}"
+        f"{colors.Style.RESET_ALL}"
+    )
+    return command

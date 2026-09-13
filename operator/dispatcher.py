@@ -18,6 +18,7 @@ def help_usage():
         "use session", # using this we login to the target's shell and then execute commands 
         "back",
         "clear",
+        "shell",
         #"execute <command>",
         "exit"
     ]
@@ -28,12 +29,12 @@ def help_usage():
 
 
 
-def shell_usage(command, session_id): # IMPLEMENT SHELL USAGE
-    if connection.start_shell(command, session_id):
-        pass
-    else:
-        print(f"{colors.Fore.RED}[!]Failed to establish reverse shell")
+def shell_usage(): # IMPLEMENT SHELL USAGE
+    global current_session
+    if current_session is None:
+        print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!]choose a session first{colors.Style.RESET_ALL}")
         return
+    connection.start_shell(current_session)
 
 
 
@@ -54,7 +55,6 @@ def target_info():
             f"{active_sessions[current_session]["agent_ip"]:<15}"
             f"{active_sessions[current_session]["agent_port"]:<15}"
         )
-
 
 
 
@@ -143,15 +143,12 @@ def dispatch():
                 command, session_id = parse_session_id(command)
             if command in command_dispatcher:
                 if command == "shell":
-                    if session_id == None:
-                        print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!]choose a session first{colors.Style.RESET_ALL}")
-                    else:
-                        command_dispatcher[command](command, session_id)
-                if command == "use":
+                    command_dispatcher["shell"]()
+                elif command == "use":
                     if session_id == None:
                         print(f"{colors.Fore.RED}[!]invalid session id")
                     else:
-                        command_dispatcher[command](command, session_id)
+                        command_dispatcher["use"](command, session_id)
                 else:
                     command_dispatcher[command]() # using the command key to call the associated function of the key")
             else:
