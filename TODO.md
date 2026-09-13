@@ -33,3 +33,8 @@ agent$> back
 
 ghost [1]$>
 ```
+
+- create shell packet strcuture and sent to agent
+- let agent execute the shell command and maintain shell persistence
+- sent the output back to server
+- server sends output back to operator console
