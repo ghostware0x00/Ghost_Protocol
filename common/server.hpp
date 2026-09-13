@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <packet.hpp>
 #include <unordered_map> // used for session handling (store key value pair of session_ids(key) and client_fd(value))
 
 
@@ -34,8 +35,9 @@ class server{
         void operator_data_recvHandling(int received_bytes, int client_fd);
         bool send_all(int client_fd, const void *data, size_t length);
         bool recv_all(int client_fd, void *buffer, size_t length);
-        void command_dispatcher(std::string command, int client_fd); // function will be used to call the associated function based on the command supplied by the operator
+        void command_dispatcher(const packet &received_packet, int client_fd); // used to execute the corresponding function based on the payload received
         int get_session_id();
+        int agentLookup(uint32_t session_id); // function to use the session_id received from operator console to lookup the agent by using session_id to find the agent's client_fd in the session_registry
         void detect_active_agents(int client_fd, int session_id); // passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time
         void display_active_agents();
         void get_active_agents(int client_fd); // function for operator console

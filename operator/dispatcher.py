@@ -27,6 +27,17 @@ def help_usage():
     print(f"\n".join(help_commands))
 
 
+
+def shell_usage(command, session_id): # IMPLEMENT SHELL USAGE
+    if connection.start_shell(command, session_id):
+        pass
+    else:
+        print(f"{colors.Fore.RED}[!]Failed to establish reverse shell")
+        return
+
+
+
+
 def target_info():
     global current_session
     global active_sessions
@@ -45,10 +56,12 @@ def target_info():
         )
 
 
+
+
 def sessions_usage():
     global active_sessions
     print(f"\n{colors.Style.BRIGHT}{colors.Fore.CYAN}[*]Listing sessions{colors.Style.RESET_ALL}")
-    session_info = connection.connect("sessions")
+    session_info = connection.sessions("sessions")
     if session_info is None:
         active_sessions = {}
         return
@@ -56,6 +69,7 @@ def sessions_usage():
     for session in session_info:
         session_id = session["agent_sid"]
         active_sessions[session_id] = session
+
 
 
 def choose_session(command, session_id): # to do (IMPLEMENT USE or choose a session)
@@ -109,6 +123,7 @@ command_dispatcher = {
     "use": choose_session,
     "back": back_usage,
     "info": target_info,
+    "shell": shell_usage,
     "execute": execute_cmd_usage,
     "clear": clear_usage,
     "exit": exit_usage
@@ -127,6 +142,11 @@ def dispatch():
                     continue
                 command, session_id = parse_session_id(command)
             if command in command_dispatcher:
+                if command == "shell":
+                    if session_id == None:
+                        print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!]choose a session first{colors.Style.RESET_ALL}")
+                    else:
+                        command_dispatcher[command](command, session_id)
                 if command == "use":
                     if session_id == None:
                         print(f"{colors.Fore.RED}[!]invalid session id")

