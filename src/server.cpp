@@ -175,8 +175,9 @@ int server::agentLookup(uint32_t session_id){
 
 
 
-void server::handle_shell_session(int client_fd, int agent_fd, int session_id){
-    
+void server::handle_shell_session(int client_fd, int agent_fd, uint32_t session_id){
+    // IMPLMENET CODE TO HANDLE SHELL SESSIONS
+    // SENT SHELL DATA TO RESPECTIVE AGENTS
 }
 
 
@@ -198,20 +199,23 @@ void server::command_dispatcher(const packet &received_packet, int client_fd){
         // get that agent's client_fd
         // send shell-start packet to that agent
         int agent_fd = agentLookup(received_packet.session_id);
-        if(agent_fd < 0){
+        if(agent_fd < 0){ // when agent id could not be found in the session_registry then this block is executed
             std::cout << "[!]agent lookup failed" << std::endl;
             packet response{}; // initializing response structure to 0
             response.message_type = MESSAGE_ERROR;
-            response.session_id = session_id;
+            response.session_id = received_packet.session_id;
             response.payload = "invalid or inactive session";
             response.payload_length = response.payload.size();
             std::vector<uint8_t> serialized = serialization(response);
-            send_all(client_fd, serialized.data(), serialized.size());
-            close(client_fd);
-            return;
+            if(!send_all(client_fd, serialized.data(), serialized.size())){
+                common::send_failed(client_fd);
+                return;
+            }
         }
         std::cout << "[+] agent lookup succeeded" << std::endl;
         std::cout << "[+] agent fd : " << agent_fd << std::endl;
+        uint32_t session_id = received_packet.session_id;
+        handle_shell_session(client_fd, agent_fd, session_id);
     }
     else{
         std::cout << "[!]unsupported MESSAGE_TYPE received : " << received_packet.message_type << std::endl;

@@ -36,7 +36,7 @@ class server{
         bool send_all(int client_fd, const void *data, size_t length);
         bool recv_all(int client_fd, void *buffer, size_t length);
         void command_dispatcher(const packet &received_packet, int client_fd); // used to execute the corresponding function based on the payload received
-        void handle_shell_session(int client_fd, int agent_fd, int session_id); // handle shell command packet strcuture
+        void handle_shell_session(int client_fd, int agent_fd, uint32_t session_id); // handle shell command packet strcuture
         int get_session_id();
         int agentLookup(uint32_t session_id); // function to use the session_id received from operator console to lookup the agent by using session_id to find the agent's client_fd in the session_registry
         void detect_active_agents(int client_fd, int session_id); // passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time
