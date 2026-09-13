@@ -211,6 +211,7 @@ void server::command_dispatcher(const packet &received_packet, int client_fd){
                 common::send_failed(client_fd);
                 return;
             }
+            return; // agent lookup fails and thats why code returns immediately after serializing failure message
         }
         std::cout << "[+] agent lookup succeeded" << std::endl;
         std::cout << "[+] agent fd : " << agent_fd << std::endl;
