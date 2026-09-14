@@ -178,6 +178,61 @@ int server::agentLookup(uint32_t session_id){
 void server::handle_shell_session(int client_fd, int agent_fd, uint32_t session_id){
     // IMPLMENET CODE TO HANDLE SHELL SESSIONS
     // SENT SHELL DATA TO RESPECTIVE AGENTS
+    std::println("[+]shell session started | SID : {} | AGENT_FD : {}", session_id, agent_fd);
+    while(true){
+        constexpr size_t HEADER_SIZE = 12; // payload_header size is 12 bytes 4() + 4 + 4 = 12 
+        uint8_t payload_header[HEADER_SIZE];
+        if(!recv_all(client_fd, payload_header, HEADER_SIZE)){// receive packet from operator
+            std::cout << "[!] operator shell connection closed" << std::endl;
+            break;
+        }
+        //deserializing header to determine the message_type first based on which shell operation will be performed
+        packet received_packet = deserialization_payload_header(payload_header);
+        std::cout << "[+]SHELL MESSAGE_TYPE : " << received_packet.message_type << std::endl;
+        std::cout << "[+]SESSION_ID : " << received_packet.session_id << std::endl;
+        std::cout << "[+]PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
+        // receive payload if present because when MESSAGE_SHELL_START will be sent by operator there wont be any payload 
+        // if there is payload then MESSAGE_SHELL_DATA or MESSAGE_SHELL_EXIT something like that will be sent so below is the checking for that
+        if(received_packet.payload_length > 0){
+            std::vector<uint8_t> payload(received_packet.payload_length); // container for storing the payload
+            if(!recv_all(client_fd, payload.data(), received_packet.payload_length)){
+                std::cout << "[!]failed to receive shell payload" << std::endl;
+                break;
+            }   
+            received_packet.payload = deserialization_payload(payload.data(), payload.size()); // converting raw bytes to actual data and getting payload
+        }
+        if(received_packet.session_id != session_id){ // making sure the packet belongs to this agent's shell session_id
+                std::cout << "[!]session_id mismatch error" << std::endl;
+                continue;
+        }
+        // exiting the shell when MESSAGE_SHELL_EXIT is sent
+        if(received_packet.message_type == MESSAGE_SHELL_EXIT){
+            std::cout << "[!]shell session id : " << session_id << " exited" << std::endl;
+            break;
+        }
+        else if(received_packet.message_type == MESSAGE_SHELL_DATA){ // shell data
+            std::cout << "[+]shell payload : " << received_packet.payload << std::endl;
+            std::println("\n");
+            /*
+            TESTING PAYLOADS SENT TO AGENT AND NOT TRYING OS COMMANDS RIGHT NOW
+            TESTING WHETHER ROUTING IS WORKING OR NOT AT FIRST BEFORE REMOTE COMMAND EXECUTION(RCE)
+            */
+           packet response{};
+           response.message_type = MESSAGE_OUTPUT;
+           response.session_id = session_id;
+           response.payload = "[agent received] " + received_packet.payload;
+           std::vector<uint8_t> serialized = serialization(response);
+           if(!send_all(client_fd, serialized.data(), serialized.size())){
+                std::cout << "[!]failed to send shell output to operator console" << std::endl;
+                break;
+           }
+        }
+        else{
+            std::cout << "[!]unsupported shell MESSAGE_TYPE" << received_packet.message_type << std::endl;
+        }
+    }
+    close(client_fd);
+    std::cout << "[*] shell operator connection was closed" << std::endl;
 }
 
 
@@ -209,18 +264,20 @@ void server::command_dispatcher(const packet &received_packet, int client_fd){
             std::vector<uint8_t> serialized = serialization(response);
             if(!send_all(client_fd, serialized.data(), serialized.size())){
                 common::send_failed(client_fd);
-                return;
+                return; // return if send_all() failed
             }
             return; // agent lookup fails and thats why code returns immediately after serializing failure message
         }
         std::cout << "[+] agent lookup succeeded" << std::endl;
         std::cout << "[+] agent fd : " << agent_fd << std::endl;
+        std::println("\n");
         uint32_t session_id = received_packet.session_id;
         handle_shell_session(client_fd, agent_fd, session_id);
     }
     else{
         std::cout << "[!]unsupported MESSAGE_TYPE received : " << received_packet.message_type << std::endl;
     }
+    std::println("\n");
 }
 
 
@@ -447,6 +504,7 @@ void server::operator_listener(){
         std::cout << "[+]MESSAGE_TYPE : " << received_packet.message_type << std::endl;
         std::cout << "[+]SESSION_ID : " << received_packet.session_id << std::endl;
         std::cout << "[+]PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
+        std::println("\n");
         //receiving payload
         if(received_packet.payload_length > 0){
             std::vector<uint8_t> payload(received_packet.payload_length);
@@ -461,14 +519,22 @@ void server::operator_listener(){
 
             // Starting Dispatch
             std::cout << "[+]PAYLOAD : " << received_packet.payload << std::endl;
-            if(received_packet.message_type == MESSAGE_COMMAND ||
-                received_packet.message_type == MESSAGE_SHELL_START){
-                command_dispatcher(received_packet, client_fd);// automatically passes the address of the packet structure without having to deal with complex pointers and dereferencing
-            }
-            else{
-                std::cout << "[!]unsupported MESSAGE_TYPE : " << received_packet.message_type << std::endl;
-                close(client_fd);
-            }
+            // if(received_packet.message_type == MESSAGE_COMMAND ||
+            //     received_packet.message_type == MESSAGE_SHELL_START){
+            //     command_dispatcher(received_packet, client_fd);// automatically passes the address of the packet structure without having to deal with complex pointers and dereferencing
+            // }
+            // else{
+            //     std::cout << "[!]unsupported MESSAGE_TYPE : " << received_packet.message_type << std::endl;
+            //     close(client_fd);
+            // }
+        }
+        // dispatch regardless of payload length cuz SHELL_START will not have any payload its just to initiate the shell establishment with the agent
+        if(received_packet.message_type == MESSAGE_COMMAND || received_packet.message_type == MESSAGE_SHELL_START){
+            command_dispatcher(received_packet, client_fd);
+        }
+        else{
+            std::cout << "[!]unsupported MESSAGE_TYPE : " << received_packet.message_type << std::endl;
+            close(client_fd);
         }
     }
 }

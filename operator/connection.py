@@ -76,7 +76,7 @@ def start_shell(session_id): # here session_id is the current_session variable f
         print()
         while True:
             command = cli.shellPrompt()
-            if command == "back":
+            if command == "back" or command == "exit": # exit shell session
                 print(f"{colors.Fore.CYAN}[*] exiting shell")
                 exit_packet = protocol.packet_formation(protocol.MESSAGE_SHELL_EXIT, session_id, "")
                 shell_socket.sendall(exit_packet) # exit shell prompt
