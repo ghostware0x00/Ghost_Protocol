@@ -30,9 +30,27 @@ def help_usage():
 
 
 def shell_usage(): # IMPLEMENT SHELL USAGE
+    global active_sessions
     global current_session
     if current_session is None:
         print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!]choose a session first{colors.Style.RESET_ALL}")
+        return
+    # performing a fresh sessions check to deal with a scenario lets say the agent disconnected when inside the shell prompt 
+    session_info = connection.sessions("sessions")
+    if session_info is None:
+        active_sessions = {}
+        current_session = None
+        print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!]session id : {current_session} is no longer active{colors.Style.RESET_ALL}")
+        return
+    # rebuilding the active_sessions
+    active_sessions = {}
+    for session in session_info:
+        session_id = session["agent_sid"]
+        active_sessions[session_id] = session
+    # check whether the session still exists
+    if current_session not in active_sessions:
+        print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!]session id : {current_session} is no longer active{colors.Style.RESET_ALL}")
+        current_session = None
         return
     connection.start_shell(current_session)
 
@@ -60,15 +78,24 @@ def target_info():
 
 def sessions_usage():
     global active_sessions
+    global current_session
     print(f"\n{colors.Style.BRIGHT}{colors.Fore.CYAN}[*]Listing sessions{colors.Style.RESET_ALL}")
     session_info = connection.sessions("sessions")
     if session_info is None:
         active_sessions = {}
+        current_session = None
         return
     active_sessions = {} # updating active_sessions each time so that disconnected agent ids dont remain and shows active agents in real time
     for session in session_info:
         session_id = session["agent_sid"]
         active_sessions[session_id] = session
+    # handling situation where connected to session but it disappeared from active_sessions but still inside the prompt
+    # leaving that session immediately
+    if current_session is not None:
+        if current_session not in active_sessions:
+            print(f"{colors.Style.BRIGHT}{colors.Fore.YELLOW}[!]session id : {current_session} is no longer active{colors.Style.RESET_ALL}")
+            current_session = None
+
 
 
 

