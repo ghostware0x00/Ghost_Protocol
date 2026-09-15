@@ -13,6 +13,7 @@ constexpr int MESSAGE_SHELL_DATA = 3;
 constexpr int MESSAGE_SHELL_EXIT = 4;
 constexpr int MESSAGE_OUTPUT = 5;
 constexpr int MESSAGE_ERROR = 6;
+constexpr int MESSAGE_SHELL_ACK = 7; // indicates shell established or not
 
 
 class server{
@@ -42,6 +43,7 @@ class server{
         void detect_active_agents(int client_fd, int session_id); // passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time
         void display_active_agents();
         void get_active_agents(int client_fd); // function for operator console
+        //packet msg_error(const packet &p);
         int choose_session();
         void bind_failed(int server_fd);
         void setsockopt_failed(int server_fd);

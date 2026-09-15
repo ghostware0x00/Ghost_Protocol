@@ -235,8 +235,6 @@ void server::handle_shell_session(int client_fd, int agent_fd, uint32_t session_
     std::cout << "[*] shell operator connection was closed" << std::endl;
 }
 
-
-
 void server::command_dispatcher(const packet &received_packet, int client_fd){
     // Normal operator commands
     if(received_packet.message_type == MESSAGE_COMMAND){ // for basic commands
@@ -247,8 +245,7 @@ void server::command_dispatcher(const packet &received_packet, int client_fd){
             std::cout << "[!]unknown command received : "<< received_packet.payload << std::endl;
         }
     }
-    // Start persistent shell session
-    else if(received_packet.message_type == MESSAGE_SHELL_START){
+    else if(received_packet.message_type == MESSAGE_SHELL_START){ // intiates the shell connection using the "shell" command
         // based on the sid choose the corresponding client_fd from the session registry to send the command to the agent
         // find session_registry[received_packet.session_id]
         // get that agent's client_fd
@@ -266,12 +263,48 @@ void server::command_dispatcher(const packet &received_packet, int client_fd){
                 common::send_failed(client_fd);
                 return; // return if send_all() failed
             }
-            return; // agent lookup fails and thats why code returns immediately after serializing failure message
+            return; // immediately return if the lookup failed
         }
+
+        // THIS PART REACHED WHEN AGENT LOOKUP IS SESSION_REGISTRY SUCCEEDS
         std::cout << "[+] agent lookup succeeded" << std::endl;
         std::cout << "[+] agent fd : " << agent_fd << std::endl;
         std::println("\n");
         uint32_t session_id = received_packet.session_id;
+        
+        // sending message to the agent first
+        // initializing the structure pakcet to SHELL_START before sending to agent
+        packet agent_request{};
+        agent_request.message_type = MESSAGE_SHELL_START;
+        agent_request.session_id = session_id;
+        agent_request.payload = "";
+        agent_request.payload_length = 0;
+        std::vector<uint8_t> agent_serialized = serialization(agent_request);
+        // sending the serialized data to agent_fd 
+        if(!send_all(agent_fd, agent_serialized.data(), agent_serialized.size())){ // sending SHELL_START serialized data to agent
+            // the below code executes if server fails to send the MESSAGE_SHELL_START msg to agent
+            std::cout << "[!]failed to send SHELL_START msg to agent" << std::endl;
+            packet response{}; // initializing response structure to 0
+            response.message_type = MESSAGE_ERROR; 
+            response.session_id = received_packet.session_id;
+            response.payload = "invalid or inactive session";
+            response.payload_length = response.payload.size();
+            std::vector<uint8_t> serialized = serialization(response);
+            if(!send_all(client_fd, serialized.data(), serialized.size())){
+                common::send_failed(client_fd);
+                return; // return if send_all() failed
+            }
+            return;    
+        }
+        std::cout << "[+]SHELL_START msg sent to agent" << std::endl;
+        
+        /*
+            AFTER SENDING THE SHELL_START msg to AGENT
+            WAIT FOR THE AGENT TO SEND MESSAGE_SHELL_ACK BACK AND ONLY THEN START THE agent$> shell in the OPERATOR CONSOLE
+            BASED ON THE MESSAGE_SHELL_ACK THE SHELL CONNECTIVITY STATYS AND TERMINATES        
+        */
+
+
         handle_shell_session(client_fd, agent_fd, session_id);
     }
     else{

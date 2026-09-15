@@ -38,3 +38,10 @@ ghost [1]$>
 - let agent execute the shell command and maintain shell persistence
 - sent the output back to server
 - server sends output back to operator console
+
+
+### DO THIS FIRST
+
+- AFTER SENDING THE SHELL_START msg to AGENT WAIT FOR THE AGENT TO SEND MESSAGE_SHELL_ACK BACK AND ONLY THEN START THE agent$> shell in the OPERATOR CONSOLE BASED ON THE MESSAGE_SHELL_ACK THE SHELL CONNECTIVITY STATYS AND TERMINATES  
+
+- THE ABOVE STUFF DO IN `command_dispatcher()`
