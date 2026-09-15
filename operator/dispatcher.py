@@ -66,7 +66,7 @@ def target_info():
         print("_"*35)
         print(
             f"{'TARGET_IP':<15}"
-            f"{'SOURCE PORT':<15}"
+            f"{'DESTINATION PORT':<20}"
         )
         print("_"*35)
         print(
