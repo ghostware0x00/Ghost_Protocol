@@ -181,8 +181,8 @@ def dispatch():
             else:
                 print(f"{colors.Fore.YELLOW}command not found")
             print()
-        except KeyboardInterrupt:
-            print(f"\n{colors.Fore.RED}[!]exiting ghost protocol\n")
+        except (KeyboardInterrupt, EOFError):
+            print(f"\n{colors.Fore.RED}[!] exiting ghost protocol\n")
             os._exit(0)
 
         

@@ -9,7 +9,11 @@ BIN = exe
 
 # Common source files
 SERVER_SRC = src/server.cpp
-AGENT_SRC  = src/agent.cpp
+AGENT_SRC  = src/agent.cpp src/PersistentShell.cpp
+
+# Standalone local demo (not linked into agent or server)
+DEMO_SRC   = src/process_demo.cpp src/PersistentShell.cpp
+DEMO       = $(BIN)/process_demo
 
 # Targets
 SERVER = $(BIN)/server_main
@@ -32,14 +36,23 @@ $(AGENT): agent_main.cpp $(AGENT_SRC)
 	$(CXX) $(CXXFLAGS) agent_main.cpp $(AGENT_SRC) -o $(AGENT)
 
 # -----------------------
+# Standalone process demo
+# (local POSIX test only — no networking)
+# -----------------------
+demo: $(DEMO)
+$(DEMO): $(DEMO_SRC)
+	@mkdir -p $(BIN)
+	$(CXX) $(CXXFLAGS) $(DEMO_SRC) -o $(DEMO)
+
+# -----------------------
 # Clean
 # -----------------------
 clean:
-	rm -f $(SERVER) $(AGENT)
+	rm -f $(SERVER) $(AGENT) $(DEMO)
 
 # -----------------------
 # Rebuild
 # -----------------------
 rebuild: clean all
 
-.PHONY: all clean rebuild
+.PHONY: all demo clean rebuild

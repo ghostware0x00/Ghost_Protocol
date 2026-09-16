@@ -25,6 +25,9 @@ class server{
             int client_fd;
             std::string ip_address;
             uint16_t port;
+            //shell state
+            bool shell_active = false;
+            int operator_fd = -1;
         };
         uint32_t session_id = 0;
         std::unordered_map<uint32_t, SessionInfo> session_registry;
@@ -40,7 +43,8 @@ class server{
         void handle_shell_session(int operator_fd, int agent_fd, uint32_t session_id); // handle shell command packet strcuture
         int get_session_id();
         int agentLookup(uint32_t session_id); // function to use the session_id received from operator console to lookup the agent by using session_id to find the agent's client_fd in the session_registry
-        void detect_active_agents(int client_fd, int session_id); // passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time
+        //void detect_active_agents(int client_fd, int session_id); // passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time
+        void handle_agent_connection(int agent_fd, uint32_t session_id);// passing the session_registry as address cuz threads store data in their own stack frame so we pass by reference so that we can update the original session hash table in real time
         void display_active_agents();
         void get_active_agents(int client_fd); // function for operator console
         //packet msg_error(const packet &p);

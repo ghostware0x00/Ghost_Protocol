@@ -176,63 +176,78 @@ int server::agentLookup(uint32_t session_id){
 
 
 void server::handle_shell_session(int client_fd, int agent_fd, uint32_t session_id){
-    // IMPLMENET CODE TO HANDLE SHELL SESSIONS
-    // SENT SHELL DATA TO RESPECTIVE AGENTS
-    std::println("[+]shell session started | SID : {} | AGENT_FD : {}", session_id, agent_fd);
+    std::println("[+] shell session handler started | SID : {} | AGENT_FD : {}", session_id, agent_fd);
     while(true){
-        constexpr size_t HEADER_SIZE = 12; // payload_header size is 12 bytes 4() + 4 + 4 = 12 
+        constexpr size_t HEADER_SIZE = 12; // payload_header size is 12 bytes
         uint8_t payload_header[HEADER_SIZE];
-        if(!recv_all(client_fd, payload_header, HEADER_SIZE)){// receive packet from operator
-            std::cout << "[!] operator shell connection closed" << std::endl;
+        if(!recv_all(client_fd, payload_header, HEADER_SIZE)){
+            std::cout << "[*] operator shell connection closed (SID : " << session_id << ")" << std::endl;
             break;
         }
-        //deserializing header to determine the message_type first based on which shell operation will be performed
         packet received_packet = deserialization_payload_header(payload_header);
-        std::cout << "[+]SHELL MESSAGE_TYPE : " << received_packet.message_type << std::endl;
-        std::cout << "[+]SESSION_ID : " << received_packet.session_id << std::endl;
-        std::cout << "[+]PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
-        // receive payload if present because when MESSAGE_SHELL_START will be sent by operator there wont be any payload 
-        // if there is payload then MESSAGE_SHELL_DATA or MESSAGE_SHELL_EXIT something like that will be sent so below is the checking for that
+        std::cout << "[+] SHELL MESSAGE_TYPE : " << received_packet.message_type << std::endl;
+        std::cout << "[+] SESSION_ID : " << received_packet.session_id << std::endl;
+        std::cout << "[+] PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
+
         if(received_packet.payload_length > 0){
-            std::vector<uint8_t> payload(received_packet.payload_length); // container for storing the payload
+            std::vector<uint8_t> payload(received_packet.payload_length);
             if(!recv_all(client_fd, payload.data(), received_packet.payload_length)){
-                std::cout << "[!]failed to receive shell payload" << std::endl;
+                std::cout << "[!] failed to receive shell payload from operator" << std::endl;
                 break;
             }   
-            received_packet.payload = deserialization_payload(payload.data(), payload.size()); // converting raw bytes to actual data and getting payload
+            received_packet.payload = deserialization_payload(payload.data(), payload.size());
+            std::cout << "[+] SHELL PAYLOAD : " << received_packet.payload << std::endl;
         }
-        if(received_packet.session_id != session_id){ // making sure the packet belongs to this agent's shell session_id
-                std::cout << "[!]session_id mismatch error" << std::endl;
-                continue;
+
+        if(received_packet.session_id != session_id){
+            std::cout << "[!] session_id mismatch error (expected " << session_id << ", got " << received_packet.session_id << ")" << std::endl;
+            continue;
         }
-        // exiting the shell when MESSAGE_SHELL_EXIT is sent
+
         if(received_packet.message_type == MESSAGE_SHELL_EXIT){
-            std::cout << "[!]shell session id : " << session_id << " exited" << std::endl;
-            break;
+            std::cout << "[*] MESSAGE_SHELL_EXIT received for session " << session_id << std::endl;
+            std::cout << "[*] Routing shell exit request to agent" << std::endl;
+            std::vector<uint8_t> serialized = serialization(received_packet);
+            if(!send_all(agent_fd, serialized.data(), serialized.size())){
+                std::cout << "[!] failed to forward SHELL_EXIT to agent" << std::endl;
+            } else {
+                std::cout << "[+] SHELL_EXIT forwarded to agent" << std::endl;
+            }
+            // Loop continues; the agent responds with exit acknowledgment which handle_agent_connection
+            // routes to operator_fd. Python then closes its socket, and recv_all detects EOF and exits.
         }
-        else if(received_packet.message_type == MESSAGE_SHELL_DATA){ // shell data
-            std::cout << "[+]shell payload : " << received_packet.payload << std::endl;
-            std::println("\n");
-            /*
-            TESTING PAYLOADS SENT TO AGENT AND NOT TRYING OS COMMANDS RIGHT NOW
-            TESTING WHETHER ROUTING IS WORKING OR NOT AT FIRST BEFORE REMOTE COMMAND EXECUTION(RCE)
-            */
-           packet response{};
-           response.message_type = MESSAGE_OUTPUT;
-           response.session_id = session_id;
-           response.payload = "[agent received] " + received_packet.payload;
-           std::vector<uint8_t> serialized = serialization(response);
-           if(!send_all(client_fd, serialized.data(), serialized.size())){
-                std::cout << "[!]failed to send shell output to operator console" << std::endl;
+        else if(received_packet.message_type == MESSAGE_SHELL_DATA){
+            std::cout << "[*] MESSAGE_SHELL_DATA received for session " << session_id << ": " << received_packet.payload << std::endl;
+            std::cout << "[*] Routing shell command to agent" << std::endl;
+            std::vector<uint8_t> serialized = serialization(received_packet);
+            if(!send_all(agent_fd, serialized.data(), serialized.size())){
+                std::cout << "[!] failed to forward SHELL_DATA to agent" << std::endl;
+                packet err_pkt{};
+                err_pkt.message_type = MESSAGE_ERROR;
+                err_pkt.session_id = session_id;
+                err_pkt.payload = "[!] failed to route command to agent";
+                err_pkt.payload_length = err_pkt.payload.size();
+                std::vector<uint8_t> err_serialized = serialization(err_pkt);
+                send_all(client_fd, err_serialized.data(), err_serialized.size());
                 break;
-           }
+            }
+            std::cout << "[+] SHELL_DATA forwarded to agent" << std::endl;
         }
         else{
-            std::cout << "[!]unsupported shell MESSAGE_TYPE" << received_packet.message_type << std::endl;
+            std::cout << "[!] unsupported shell MESSAGE_TYPE: " << received_packet.message_type << std::endl;
+        }
+    }
+
+    {
+        std::unique_lock<std::mutex> lock(session_reg_mutex);
+        auto it = session_registry.find(session_id);
+        if(it != session_registry.end()){
+            it->second.shell_active = false;
+            it->second.operator_fd = -1;
         }
     }
     close(client_fd);
-    std::cout << "[*] shell operator connection was closed" << std::endl;
+    std::cout << "[*] shell operator connection cleaned up (SID : " << session_id << ")" << std::endl;
 }
 
 void server::command_dispatcher(const packet &received_packet, int client_fd){
@@ -242,73 +257,84 @@ void server::command_dispatcher(const packet &received_packet, int client_fd){
             get_active_agents(client_fd);
         }
         else{
-            std::cout << "[!]unknown command received : "<< received_packet.payload << std::endl;
+            std::cout << "[!] unknown command received : " << received_packet.payload << std::endl;
+            close(client_fd);
         }
     }
-    else if(received_packet.message_type == MESSAGE_SHELL_START){ // intiates the shell connection using the "shell" command
-        // based on the sid choose the corresponding client_fd from the session registry to send the command to the agent
-        // find session_registry[received_packet.session_id]
-        // get that agent's client_fd
-        // send shell-start packet to that agent
-        int agent_fd = agentLookup(received_packet.session_id);
-        if(agent_fd < 0){ // when agent id could not be found in the session_registry then this block is executed
-            std::cout << "[!]agent lookup failed" << std::endl;
-            packet response{}; // initializing response structure to 0
-            response.message_type = MESSAGE_ERROR;
-            response.session_id = received_packet.session_id;
-            response.payload = "invalid or inactive session";
-            response.payload_length = response.payload.size();
-            std::vector<uint8_t> serialized = serialization(response);
-            if(!send_all(client_fd, serialized.data(), serialized.size())){
-                common::send_failed(client_fd);
-                return; // return if send_all() failed
+    else if(received_packet.message_type == MESSAGE_SHELL_START){ // initiates the shell connection using the "shell" command
+        uint32_t target_session_id = received_packet.session_id;
+        std::cout << "[*] SHELL_START received for session " << target_session_id << std::endl;
+        int agent_fd = -1;
+        {
+            std::unique_lock<std::mutex> lock(session_reg_mutex);
+            auto it = session_registry.find(target_session_id);
+            if(it == session_registry.end()){
+                std::cout << "[!] agent lookup failed: session " << target_session_id << " not found" << std::endl;
+                packet response{};
+                response.message_type = MESSAGE_ERROR;
+                response.session_id = target_session_id;
+                response.payload = "invalid or inactive session";
+                response.payload_length = response.payload.size();
+                std::vector<uint8_t> serialized = serialization(response);
+                send_all(client_fd, serialized.data(), serialized.size());
+                close(client_fd);
+                return;
             }
-            return; // immediately return if the lookup failed
+            if(it->second.shell_active){
+                std::cout << "[!] shell session already active for session " << target_session_id << std::endl;
+                packet response{};
+                response.message_type = MESSAGE_ERROR;
+                response.session_id = target_session_id;
+                response.payload = "shell already active for this session";
+                response.payload_length = response.payload.size();
+                std::vector<uint8_t> serialized = serialization(response);
+                send_all(client_fd, serialized.data(), serialized.size());
+                close(client_fd);
+                return;
+            }
+            agent_fd = it->second.client_fd;
+            it->second.shell_active = true;
+            it->second.operator_fd = client_fd;
         }
 
-        // THIS PART REACHED WHEN AGENT LOOKUP IS SESSION_REGISTRY SUCCEEDS
-        std::cout << "[+] agent lookup succeeded" << std::endl;
-        std::cout << "[+] agent fd : " << agent_fd << std::endl;
-        std::println("\n");
-        uint32_t session_id = received_packet.session_id;
-        
-        // sending message to the agent first
-        // initializing the structure pakcet to SHELL_START before sending to agent
+        std::cout << "[+] agent lookup succeeded | agent_fd : " << agent_fd << std::endl;
+        std::cout << "[*] Routing shell request to agent" << std::endl;
+
         packet agent_request{};
         agent_request.message_type = MESSAGE_SHELL_START;
-        agent_request.session_id = session_id;
+        agent_request.session_id = target_session_id;
         agent_request.payload = "";
         agent_request.payload_length = 0;
         std::vector<uint8_t> agent_serialized = serialization(agent_request);
-        // sending the serialized data to agent_fd 
-        if(!send_all(agent_fd, agent_serialized.data(), agent_serialized.size())){ // sending SHELL_START serialized data to agent
-            // the below code executes if server fails to send the MESSAGE_SHELL_START msg to agent
-            std::cout << "[!]failed to send SHELL_START msg to agent" << std::endl;
-            packet response{}; // initializing response structure to 0
-            response.message_type = MESSAGE_ERROR; 
-            response.session_id = received_packet.session_id;
-            response.payload = "invalid or inactive session";
+
+        if(!send_all(agent_fd, agent_serialized.data(), agent_serialized.size())){
+            std::cout << "[!] failed to send SHELL_START msg to agent" << std::endl;
+            {
+                std::unique_lock<std::mutex> lock(session_reg_mutex);
+                auto it = session_registry.find(target_session_id);
+                if (it != session_registry.end()) {
+                    it->second.shell_active = false;
+                    it->second.operator_fd = -1;
+                }
+            }
+            packet response{};
+            response.message_type = MESSAGE_ERROR;
+            response.session_id = target_session_id;
+            response.payload = "failed to contact agent";
             response.payload_length = response.payload.size();
             std::vector<uint8_t> serialized = serialization(response);
-            if(!send_all(client_fd, serialized.data(), serialized.size())){
-                common::send_failed(client_fd);
-                return; // return if send_all() failed
-            }
-            return;    
+            send_all(client_fd, serialized.data(), serialized.size());
+            close(client_fd);
+            return;
         }
-        std::cout << "[+]SHELL_START msg sent to agent" << std::endl;
-        
-        /*
-            AFTER SENDING THE SHELL_START msg to AGENT
-            WAIT FOR THE AGENT TO SEND MESSAGE_SHELL_ACK BACK AND ONLY THEN START THE agent$> shell in the OPERATOR CONSOLE
-            BASED ON THE MESSAGE_SHELL_ACK THE SHELL CONNECTIVITY STATYS AND TERMINATES        
-        */
+        std::cout << "[+] SHELL_START forwarded to agent" << std::endl;
 
-
-        handle_shell_session(client_fd, agent_fd, session_id);
+        std::thread shell_thread(&server::handle_shell_session, this, client_fd, agent_fd, target_session_id);
+        shell_thread.detach();
     }
     else{
-        std::cout << "[!]unsupported MESSAGE_TYPE received : " << received_packet.message_type << std::endl;
+        std::cout << "[!] unsupported MESSAGE_TYPE received : " << received_packet.message_type << std::endl;
+        close(client_fd);
     }
     std::println("\n");
 }
@@ -394,7 +420,7 @@ int server::get_session_id(){
 
 
 
-void server::detect_active_agents(int client_fd, int session_id){
+void server::handle_agent_connection(int agent_fd, uint32_t session_id){
     /*
                         SERVER
                       |
@@ -412,23 +438,119 @@ void server::detect_active_agents(int client_fd, int session_id){
 
        using the threading we are able to implement this
     */
-    char temp[1024];
-    while(true){
-        int received = recv(client_fd, temp, sizeof(temp), 0);
-        if(received <= 0){ // received becomes 0 when agent disconnects and client_fd becomes invalid
-            close(client_fd);
+    while (true) {
+        constexpr size_t HEADER_SIZE = 12;
+        uint8_t header[HEADER_SIZE];
+        if (!recv_all(agent_fd, header, HEADER_SIZE)) {
+            std::cout << "[!] agent disconnected (SID: " << session_id << ")\n";
+            int op_fd = -1;
             {
-                std::unique_lock<std::mutex> lock_session_reg(session_reg_mutex); // locks the below code and automatically performs lock_session.unlock() when goes out of function scope unless explicitly called. This lock makes sure when multiple agents don't access session_registry at the same time. only when one finishes the other can modify it. Without locking multiple modifications of the session_registry at the same time might result in program crash or segmentation faults. []
-                session_registry.erase(session_id); // since session_registry is a pointer so we use arrow operator
+                std::unique_lock<std::mutex> lock(session_reg_mutex);
+                auto it = session_registry.find(session_id);
+                if (it != session_registry.end()) {
+                    op_fd = it->second.operator_fd;
+                }
             }
-            if(received == 0)
-                std::cout << "[!]agent id : " << session_id << " disconnected normally" << std::endl;
-            else
-                std::cout << "[!]agent id : " << session_id << "connection error" << std::endl;
+            if (op_fd != -1) {
+                packet err_pkt{};
+                err_pkt.message_type = MESSAGE_ERROR;
+                err_pkt.session_id = session_id;
+                err_pkt.payload = "[!] agent disconnected unexpectedly";
+                err_pkt.payload_length = err_pkt.payload.size();
+                auto err_bytes = serialization(err_pkt);
+                send_all(op_fd, err_bytes.data(), err_bytes.size());
+            }
             break;
         }
+        packet p = deserialization_payload_header(header);
+        std::cout << "[+] AGENT MESSAGE_TYPE : " << p.message_type << std::endl;
+        std::cout << "[+] SESSION_ID : " << p.session_id << std::endl;
+        std::cout << "[+] PAYLOAD_LENGTH : " << p.payload_length << std::endl;
+        if (p.payload_length > 0) {
+            std::vector<uint8_t> payload(p.payload_length);
+            if (!recv_all(agent_fd, payload.data(),payload.size())) {
+                std::cout << "[!] failed to receive agent payload\n";
+                break;
+            }
+            p.payload = deserialization_payload(payload.data(),payload.size());
+            std::cout << "[+] AGENT PAYLOAD : "
+                      << p.payload << '\n';
+        }
+        /*
+         * Only this function reads from agent_fd.
+         */
+        if (p.session_id != session_id) {
+            std::cout << "[!] session ID mismatch\n";
+            continue;
+        }
+        if (p.message_type == MESSAGE_SHELL_ACK){
+            std::cout << "[*] SHELL_ACK received from agent for session " << session_id << std::endl;
+            int operator_fd = -1;
+            {
+                std::unique_lock<std::mutex> lock(session_reg_mutex);
+                auto it = session_registry.find(session_id);
+                if (it != session_registry.end()) {
+                    it->second.shell_active = true;
+                    operator_fd = it->second.operator_fd;
+                }
+            }
+            if (operator_fd != -1) {
+                auto bytes = serialization(p);
+                send_all(operator_fd, bytes.data(), bytes.size());
+                std::cout << "[+] SHELL_ACK forwarded to operator\n";
+            }
+        }
+        else if (p.message_type == MESSAGE_OUTPUT) {
+            std::cout << "[*] MESSAGE_OUTPUT received from agent: " << p.payload << std::endl;
+            int operator_fd = -1;
+            {
+                std::unique_lock<std::mutex> lock(session_reg_mutex);
+                auto it = session_registry.find(session_id);
+                if (it != session_registry.end()) {
+                    operator_fd = it->second.operator_fd;
+                }
+            }
+            if (operator_fd != -1) {
+                auto bytes = serialization(p);
+                send_all(operator_fd, bytes.data(), bytes.size());
+                std::cout << "[+] Output routed to operator\n";
+            }
+        }
+        else if (p.message_type == MESSAGE_ERROR) {
+            std::cout << "[!] MESSAGE_ERROR received from agent: " << p.payload << std::endl;
+            int operator_fd = -1;
+            {
+                std::unique_lock<std::mutex> lock(session_reg_mutex);
+                auto it = session_registry.find(session_id);
+                if (it != session_registry.end()) {
+                    operator_fd = it->second.operator_fd;
+                }
+            }
+            if (operator_fd != -1) {
+                auto bytes = serialization(p);
+                send_all(operator_fd, bytes.data(), bytes.size());
+                std::cout << "[+] Error routed to operator\n";
+            }
+        }
+        else if (p.message_type == MESSAGE_SHELL_EXIT) {
+            std::cout << "[+] agent reported shell exit\n";
+            std::unique_lock<std::mutex> lock(session_reg_mutex);
+            auto it = session_registry.find(session_id);
+            if (it != session_registry.end()) {
+                it->second.shell_active = false;
+                it->second.operator_fd = -1;
+            }
+        }
+        else {
+            std::cout << "[!] unsupported agent message type: " << p.message_type << std::endl;
+        }
     }
-    display_active_agents();
+    {
+        std::unique_lock<std::mutex> lock(session_reg_mutex);
+        session_registry.erase(session_id);
+    }
+
+    close(agent_fd);
 }
 
 
@@ -626,7 +748,7 @@ void server::agent_listener(){
             // after this lock will be unlocked automatically cuz out of scope
         }
         display_active_agents();
-        std::thread client(&server::detect_active_agents, this, client_fd, session_id); // pass the address of original session_registry hash table
+        std::thread client(&server::handle_agent_connection, this, client_fd, session_id); // pass the address of original session_registry hash table
         // handle_multiple_clients() is a member function of the server class.
         // &server::handle_multiple_clients gives a pointer to that member function.
         // It identifies which member function the new thread should execute.

